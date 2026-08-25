@@ -9,9 +9,24 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.8.2",
+    "@clerk/shared": "^4.30.1",
+    "@prisma/client": "^7.10.0",
+    "@tiptap/extension-collaboration": "^3.30.3",
+    "@tiptap/extension-collaboration-cursor": "^2.26.2",
+    "@tiptap/extension-placeholder": "^3.30.3",
+    "@tiptap/pm": "^3.30.3",
+    "@tiptap/react": "^3.30.3",
+    "@tiptap/starter-kit": "^3.30.3",
+    "inngest": "^4.18.1",
+    "ioredis": "^6.0.0",
     "next": "16.3.2",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "resend": "^6.22.1",
+    "ws": "^8.21.3",
+    "y-websocket": "^3.1.0",
+    "yjs": "^13.6.32"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
