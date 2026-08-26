@@ -1,10 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '2mb',
-    },
-  },
+  // Emits .next/standalone for the Docker image; harmless on Vercel.
+  output: 'standalone',
+  // Native / connection-holding packages must not be bundled by Turbopack.
+  serverExternalPackages: ['@prisma/adapter-pg', 'pg', 'ioredis'],
   images: {
     remotePatterns: [
       {

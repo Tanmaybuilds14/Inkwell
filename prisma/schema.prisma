@@ -1,0 +1,113 @@
+// Inkwell — Real-Time Collaborative Document Platform
+// Schema versioned from Phase 1; later phases add fields with safe defaults.
+
+generator prisma-client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  runtime      = "nodejs"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  OWNER
+  EDITOR
+  COMMENTER
+  VIEWER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownedDocuments Document[]        @relation("DocumentOwner")
+  folders        Folder[]          @relation("FolderOwner")
+  permissions    Permission[]      @relation("UserPermissions")
+  versions       VersionSnapshot[] @relation("UserVersions")
+
+  @@index([email])
+}
+
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String
+  owner     User     @relation("FolderOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    Folder?  @relation("FolderNesting", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Folder[] @relation("FolderNesting")
+  documents Document[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  title     String   @default("Untitled")
+  ownerId   String
+  owner     User     @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  folderId  String?
+  folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  // Yjs CRDT state (Phase 2)
+  snapshot    Bytes?
+  stateVector Bytes?
+
+  // Soft delete / trash (Phase 1)
+  deletedAt        DateTime?
+  originalFolderId String?
+
+  // Link sharing — signed revocable token, not the document ID (Phase 3)
+  shareToken  String? @unique
+  shareRole   Role    @default(VIEWER)
+  shareEnabled Boolean @default(false)
+
+  schemaVersion Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  permissions Permission[]
+  versions    VersionSnapshot[]
+
+  @@index([ownerId, deletedAt])
+  @@index([folderId])
+  @@index([updatedAt])
+}
+
+model Permission {
+  id           String   @id @default(cuid())
+  documentId   String
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation("UserPermissions", fields: [userId], references: [id], onDelete: Cascade)
+  role         Role     @default(VIEWER)
+  invitedEmail String?
+  invitedBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([documentId, userId])
+  @@index([userId])
+}
+
+model VersionSnapshot {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  snapshot   Bytes
+  title      String?
+  createdBy  String?
+  creator    User?    @relation("UserVersions", fields: [createdBy], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+
+  @@index([documentId, createdAt])
+}

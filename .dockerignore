@@ -1,0 +1,25 @@
+# Dependencies are installed inside the container.
+**/node_modules
+**/.next
+**/out
+
+# Git / VCS
+**/.git
+**/.gitignore
+
+# Secrets never enter the image — inject at runtime instead.
+**/.env
+**/.env.local
+**/.env*.local
+
+# Local artifacts not needed in the build.
+**/tests
+**/coverage
+**/.vercel
+**/*.log
+**/.DS_Store
+**/tsconfig.tsbuildinfo
+next-env.d.ts
+
+# The sync service builds from its own Dockerfile/context.
+sync-service

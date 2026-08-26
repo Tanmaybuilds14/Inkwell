@@ -1,0 +1,21 @@
+{
+  "name": "inkwell-sync",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Inkwell WebSocket sync service — Yjs rooms, Redis pub/sub broadcast, Postgres snapshots.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "@clerk/backend": "^3.16.12",
+    "dotenv": "^17.4.2",
+    "ioredis": "^6.0.0",
+    "pg": "^8.23.0",
+    "ws": "^8.21.3",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.32"
+  }
+}
