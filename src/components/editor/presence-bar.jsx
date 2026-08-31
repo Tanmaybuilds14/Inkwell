@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 export function PresenceBar({ peers }) {
   if (!peers || peers.length === 0) return null;
   return (
@@ -8,10 +10,9 @@ export function PresenceBar({ peers }) {
         <span
           key={`${peer.name}-${i}`}
           title={peer.name}
-          className="flex h-7 w-7 items-center justify-center rounded-full border-2 text-[10px] font-bold text-white"
+          className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-card text-[10px] font-bold text-white"
           style={{
             background: peer.color ?? "#78716c",
-            borderColor: "var(--inkwell-paper)",
           }}
         >
           {initials(peer.name)}
@@ -19,8 +20,7 @@ export function PresenceBar({ peers }) {
       ))}
       {peers.length > 5 ? (
         <span
-          className="flex h-7 w-7 items-center justify-center rounded-full border-2 text-[10px] font-bold"
-          style={{ borderColor: "var(--inkwell-paper)", color: "var(--inkwell-muted)" }}
+          className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-card text-[10px] font-bold text-muted-foreground bg-secondary"
         >
           +{peers.length - 5}
         </span>

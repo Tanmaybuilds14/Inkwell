@@ -1,11 +1,31 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Copy, Check, X, Trash2, Link2, Mail } from "lucide-react";
 import { api } from "@/components/app-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 
 const ROLE_OPTIONS = ["VIEWER", "COMMENTER", "EDITOR"];
 
-export function ShareDialog({ documentId, onClose }) {
+export function ShareDialog({ documentId, open, onOpenChange }) {
   const [data, setData] = useState(null);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("EDITOR");
@@ -15,23 +35,15 @@ export function ShareDialog({ documentId, onClose }) {
   const load = useCallback(
     () =>
       api(`/api/documents/${documentId}/share`)
-        .then((d) => {
-          setData(d);
-          setError(null);
-        })
+        .then((d) => { setData(d); setError(null); })
         .catch((err) => setError(err.message)),
     [documentId]
   );
 
   useEffect(() => {
-    let cancelled = false;
-    api(`/api/documents/${documentId}/share`)
-      .then((d) => !cancelled && setData(d))
-      .catch((err) => !cancelled && setError(err.message));
-    return () => {
-      cancelled = true;
-    };
-  }, [documentId]);
+    if (!open) return;
+    load();
+  }, [open, load]);
 
   async function invite(e) {
     e.preventDefault();
@@ -83,91 +95,85 @@ export function ShareDialog({ documentId, onClose }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-lg rounded-xl p-6 shadow-xl"
-        style={{ background: "var(--inkwell-paper)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Share document</h2>
-          <button onClick={onClose} className="text-sm opacity-50 hover:opacity-100">✕</button>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Share document</DialogTitle>
+          <DialogDescription>
+            Invite collaborators by email or enable link sharing.
+          </DialogDescription>
+        </DialogHeader>
 
         {error ? (
-          <p className="mb-3 rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-700">{error}</p>
+          <p className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-sm text-destructive">{error}</p>
         ) : null}
 
         {/* Invite by email */}
-        <form onSubmit={invite} className="mb-5 flex gap-2">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="teammate@example.com"
-            className="flex-1 rounded-lg border px-3 py-2 text-sm outline-none"
-            style={{ borderColor: "var(--inkwell-line)" }}
-          />
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="rounded-lg border px-2 py-2 text-sm"
-            style={{ borderColor: "var(--inkwell-line)" }}
-          >
-            {ROLE_OPTIONS.map((r) => (
-              <option key={r} value={r}>{r.toLowerCase()}</option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="rounded-lg px-4 py-2 text-sm font-medium text-white"
-            style={{ background: "var(--inkwell-accent)" }}
-          >
-            Invite
-          </button>
+        <form onSubmit={invite} className="flex gap-2">
+          <div className="relative flex-1">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="teammate@example.com"
+              className="pl-9"
+            />
+          </div>
+          <Select value={role} onValueChange={setRole}>
+            <SelectTrigger className="w-[110px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ROLE_OPTIONS.map((r) => (
+                <SelectItem key={r} value={r}>{r.toLowerCase()}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button type="submit">Invite</Button>
         </form>
 
         {/* Collaborators */}
-        <div className="mb-5">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--inkwell-muted)" }}>
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             People with access
           </h3>
           {!data ? (
-            <p className="text-sm" style={{ color: "var(--inkwell-muted)" }}>Loading…</p>
+            <p className="text-sm text-muted-foreground">Loading…</p>
           ) : (
             <ul className="flex flex-col gap-1.5">
               {data.collaborators.map((c) => (
                 <li key={c.permissionId ?? c.userId} className="flex items-center gap-2 text-sm">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                    style={{ background: "#78716c" }}>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-secondary text-[10px] font-bold text-secondary-foreground">
                     {(c.name ?? "?").slice(0, 2).toUpperCase()}
                   </span>
                   <span className="flex-1 truncate">{c.name}</span>
                   {c.role === "OWNER" ? (
-                    <span className="text-xs" style={{ color: "var(--inkwell-muted)" }}>owner</span>
+                    <Badge variant="secondary">owner</Badge>
                   ) : (
                     <>
-                      <select
+                      <Select
                         value={c.role}
-                        onChange={(e) => changeRole(c.permissionId, e.target.value)}
-                        className="rounded border px-1 py-0.5 text-xs"
-                        style={{ borderColor: "var(--inkwell-line)" }}
+                        onValueChange={(val) => changeRole(c.permissionId, val)}
                       >
-                        {ROLE_OPTIONS.map((r) => (
-                          <option key={r} value={r}>{r.toLowerCase()}</option>
-                        ))}
-                      </select>
-                      <button
+                        <SelectTrigger className="h-7 w-[100px] text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLE_OPTIONS.map((r) => (
+                            <SelectItem key={r} value={r}>{r.toLowerCase()}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive"
                         onClick={() => removeCollaborator(c.permissionId)}
-                        className="px-1 text-xs"
-                        style={{ color: "var(--inkwell-danger)" }}
                         title="Remove access"
                       >
-                        ✕
-                      </button>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </>
                   )}
                 </li>
@@ -177,68 +183,68 @@ export function ShareDialog({ documentId, onClose }) {
         </div>
 
         {/* Link sharing */}
-        <div className="border-t pt-4" style={{ borderColor: "var(--inkwell-line)" }}>
+        <div className="space-y-3">
+          <Separator />
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Anyone with the link</span>
-            <label className="relative inline-flex cursor-pointer items-center">
-              <input
-                type="checkbox"
-                checked={data?.link?.enabled ?? false}
-                onChange={(e) => toggleLink(e.target.checked)}
-                className="sr-only"
-              />
-              <span
-                className={`h-5 w-9 rounded-full transition-colors ${data?.link?.enabled ? "" : "opacity-40"}`}
-                style={{ background: data?.link?.enabled ? "var(--inkwell-accent)" : "#a8a29e" }}
-              />
-            </label>
+            <div className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Anyone with the link</span>
+            </div>
+            <Switch
+              checked={data?.link?.enabled ?? false}
+              onCheckedChange={toggleLink}
+            />
           </div>
 
           {data?.link?.enabled ? (
-            <div className="mt-3 flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
-                <input
+                <Input
                   readOnly
                   value={data.link.url ?? ""}
-                  className="flex-1 rounded-lg border px-2 py-1.5 text-xs"
-                  style={{ borderColor: "var(--inkwell-line)", color: "var(--inkwell-muted)" }}
+                  className="text-xs text-muted-foreground"
                 />
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={async () => {
                     await navigator.clipboard.writeText(data.link.url);
                     setCopied(true);
                     setTimeout(() => setCopied(false), 1500);
                   }}
-                  className="rounded-lg border px-3 py-1.5 text-xs"
-                  style={{ borderColor: "var(--inkwell-line)" }}
                 >
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   {copied ? "Copied!" : "Copy"}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive"
                   onClick={() => toggleLink(false)}
-                  className="text-xs"
-                  style={{ color: "var(--inkwell-danger)" }}
                 >
                   Revoke
-                </button>
+                </Button>
               </div>
               <div className="flex items-center gap-2 text-xs">
-                <span style={{ color: "var(--inkwell-muted)" }}>link holders can:</span>
-                <select
+                <span className="text-muted-foreground">link holders can:</span>
+                <Select
                   value={data.link.role ?? "VIEWER"}
-                  onChange={(e) => setLinkRole(e.target.value)}
-                  className="rounded border px-1 py-0.5 text-xs"
-                  style={{ borderColor: "var(--inkwell-line)" }}
+                  onValueChange={setLinkRole}
                 >
-                  {ROLE_OPTIONS.map((r) => (
-                    <option key={r} value={r}>{r.toLowerCase()}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-7 w-[100px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLE_OPTIONS.map((r) => (
+                      <SelectItem key={r} value={r}>{r.toLowerCase()}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           ) : null}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

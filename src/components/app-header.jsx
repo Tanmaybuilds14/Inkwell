@@ -1,27 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
+import { Feather } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { cn } from "@/lib/utils";
 
 export function AppHeader({ title = "Inkwell", actions = null, backHref = null }) {
-  const { userId } = useAuth();
   return (
     <header
-      className="flex h-14 w-full items-center justify-between border-b px-4"
-      style={{ borderColor: "var(--inkwell-line)", background: "var(--inkwell-paper)" }}
+      className="flex h-14 w-full items-center justify-between border-b border-border bg-card/50 backdrop-blur-sm px-4"
     >
       <div className="flex items-center gap-3">
         {backHref ? (
-          <Link href={backHref} className="text-sm" style={{ color: "var(--inkwell-muted)" }}>
+          <Link
+            href={backHref}
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
             ← Back
           </Link>
         ) : null}
-        <Link href="/documents" className="font-semibold tracking-tight">
+        <Link href="/documents" className="flex items-center gap-2 font-semibold tracking-tight">
+          <Feather className="h-4 w-4 text-primary" />
           {title}
         </Link>
       </div>
-      <div className="flex items-center gap-2">{actions}</div>
+      <div className="flex items-center gap-2">
+        {actions}
+        <ThemeToggle />
+      </div>
     </header>
   );
 }

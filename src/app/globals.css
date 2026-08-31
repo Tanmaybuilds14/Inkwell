@@ -1,45 +1,124 @@
 @import "tailwindcss";
 
-:root {
-  --background: #fafaf9;
-  --foreground: #1c1917;
+/* Enables class-based dark mode: .dark on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
 
+/* ---- Light theme (default) ---- */
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  --primary: #0d9488;
+  --primary-foreground: #f0fdfa;
+
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+
+  --destructive: #e11d48;
+  --destructive-foreground: #fff1f2;
+
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #0d9488;
+
+  /* Inkwell-specific tokens (kept for editor surface) */
   --inkwell-paper: #ffffff;
-  --inkwell-ink: #1c1917;
-  --inkwell-muted: #78716c;
-  --inkwell-line: #e7e5e4;
-  --inkwell-accent: #0f766e;
-  --inkwell-accent-hover: #115e59;
+  --inkwell-ink: #0f172a;
+  --inkwell-line: #e2e8f0;
+  --inkwell-accent: #0d9488;
+  --inkwell-accent-hover: #0f766e;
   --inkwell-accent-soft: #f0fdfa;
-  --inkwell-danger: #b91c1c;
+  --inkwell-muted: #64748b;
+  --inkwell-danger: #e11d48;
+}
+
+/* ---- Dark theme (.dark on <html>) ---- */
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+
+  --card: #1e293b;
+  --card-foreground: #f1f5f9;
+
+  --popover: #1e293b;
+  --popover-foreground: #f1f5f9;
+
+  --primary: #2dd4bf;
+  --primary-foreground: #042f2e;
+
+  --secondary: #334155;
+  --secondary-foreground: #f1f5f9;
+
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+
+  --accent: #334155;
+  --accent-foreground: #f1f5f9;
+
+  --destructive: #fb7185;
+  --destructive-foreground: #4c0519;
+
+  --border: #334155;
+  --input: #334155;
+  --ring: #2dd4bf;
+
+  --inkwell-paper: #1e293b;
+  --inkwell-ink: #f1f5f9;
+  --inkwell-line: #334155;
+  --inkwell-accent: #2dd4bf;
+  --inkwell-accent-hover: #5eead4;
+  --inkwell-accent-soft: #134e4a;
+  --inkwell-muted: #94a3b8;
+  --inkwell-danger: #fb7185;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0c0a09;
-    --foreground: #fafaf9;
-    --inkwell-paper: #1c1917;
-    --inkwell-ink: #fafaf9;
-    --inkwell-muted: #a8a29e;
-    --inkwell-line: #44403c;
-    --inkwell-accent: #2dd4bf;
-    --inkwell-accent-hover: #5eead4;
-    --inkwell-accent-soft: #134e4a;
-    --inkwell-danger: #f87171;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+/* Smooth theme transition */
+* {
+  transition-property: background-color, border-color;
+  transition-duration: 150ms;
 }
 
 /* ---- Inkwell editor surface ---- */
@@ -53,7 +132,7 @@ body {
 .inkwell-editor .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: var(--inkwell-muted);
+  color: var(--muted-foreground);
   pointer-events: none;
   height: 0;
 }
@@ -64,14 +143,14 @@ body {
 .inkwell-editor .ProseMirror ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
 .inkwell-editor .ProseMirror ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
 .inkwell-editor .ProseMirror blockquote {
-  border-left: 3px solid var(--inkwell-accent);
+  border-left: 3px solid var(--primary);
   padding-left: 1rem;
-  color: var(--inkwell-muted);
+  color: var(--muted-foreground);
   margin: 0.75rem 0;
 }
 .inkwell-editor .ProseMirror pre {
-  background: var(--inkwell-accent-soft);
-  border: 1px solid var(--inkwell-line);
+  background: var(--muted);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   font-family: var(--font-mono);
@@ -107,3 +186,22 @@ body {
 
 /* Version-history preview surface */
 .version-preview .ProseMirror { min-height: unset; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+
+/* Radix UI animations */
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes zoom-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes zoom-out { from { transform: scale(1); opacity: 1; } to { transform: scale(0.95); opacity: 0; } }
+
+.animate-in { animation-duration: 200ms; animation-fill-mode: both; }
+.animate-out { animation-duration: 200ms; animation-fill-mode: both; }
+.fade-in-0 { animation-name: fade-in; }
+.fade-out-0 { animation-name: fade-out; }
+.zoom-in-95 { animation-name: zoom-in; }
+.zoom-out-95 { animation-name: zoom-out; }

@@ -6,6 +6,26 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCaret from "@tiptap/extension-collaboration-caret";
+import {
+  Bold,
+  Italic,
+  Strikethrough,
+  Heading1,
+  Heading2,
+  Heading3,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 const ROLE_LABELS = {
   OWNER: "owner",
@@ -31,7 +51,6 @@ export function CollabEditor({ documentId, ydoc, getProvider, role }) {
   const editor = useEditor(
     {
       extensions: [
-        // CRDT owns history — local undo stack must be off.
         StarterKit.configure({ undoRedo: false }),
         Placeholder.configure({
           placeholder: canEdit
@@ -60,7 +79,7 @@ export function CollabEditor({ documentId, ydoc, getProvider, role }) {
 
   if (!editor) {
     return (
-      <div className="h-64 animate-pulse rounded-lg" style={{ background: "var(--inkwell-accent-soft)" }} />
+      <div className="h-64 animate-pulse rounded-lg bg-muted" />
     );
   }
 
@@ -68,7 +87,7 @@ export function CollabEditor({ documentId, ydoc, getProvider, role }) {
     <div>
       <div className="mb-2 flex items-center justify-between">
         <Toolbar editor={editor} canEdit={canEdit} />
-        <span className="text-xs uppercase tracking-wide" style={{ color: "var(--inkwell-muted)" }}>
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">
           you are {ROLE_LABELS[role] ?? role}
         </span>
       </div>
@@ -79,58 +98,59 @@ export function CollabEditor({ documentId, ydoc, getProvider, role }) {
 
 function ToolbarButton({ onClick, active, disabled, children, title }) {
   return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      disabled={disabled}
-      className={`rounded px-2 py-1 text-sm ${active ? "font-bold" : ""}`}
-      style={{
-        background: active ? "var(--inkwell-accent-soft)" : "transparent",
-        color: active ? "var(--inkwell-accent)" : "inherit",
-        opacity: disabled ? 0.4 : 1,
-      }}
-    >
-      {children}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          disabled={disabled}
+          onClick={onClick}
+          className={cn("h-8 w-8", active && "bg-primary/10 text-primary")}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{title}</TooltipContent>
+    </Tooltip>
   );
 }
 
 function Toolbar({ editor, canEdit }) {
   if (!canEdit) return <span />;
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card p-1">
       <ToolbarButton title="Bold" onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")}>
-        B
+        <Bold className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton title="Italic" onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")}>
-        <em>I</em>
+        <Italic className="h-4 w-4" />
       </ToolbarButton>
-      <ToolbarButton title="Strike" onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")}>
-        <s>S</s>
+      <ToolbarButton title="Strikethrough" onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")}>
+        <Strikethrough className="h-4 w-4" />
       </ToolbarButton>
-      <span className="mx-1 h-5 w-px" style={{ background: "var(--inkwell-line)" }} />
+      <Separator orientation="vertical" className="mx-1 h-5" />
       <ToolbarButton title="Heading 1" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })}>
-        H1
+        <Heading1 className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton title="Heading 2" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })}>
-        H2
+        <Heading2 className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton title="Heading 3" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive("heading", { level: 3 })}>
-        H3
+        <Heading3 className="h-4 w-4" />
       </ToolbarButton>
-      <span className="mx-1 h-5 w-px" style={{ background: "var(--inkwell-line)" }} />
+      <Separator orientation="vertical" className="mx-1 h-5" />
       <ToolbarButton title="Bullet list" onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")}>
-        •≡
+        <List className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton title="Numbered list" onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")}>
-        1≡
+        <ListOrdered className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton title="Blockquote" onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")}>
-        ❝
+        <Quote className="h-4 w-4" />
       </ToolbarButton>
       <ToolbarButton title="Code block" onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive("codeBlock")}>
-        {"</>"}
+        <Code className="h-4 w-4" />
       </ToolbarButton>
     </div>
   );

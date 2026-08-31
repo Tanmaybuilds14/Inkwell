@@ -5,11 +5,15 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
+import { History, Share2, Trash2 } from "lucide-react";
 import { AppHeader, api } from "@/components/app-header";
 import { CollabEditor } from "@/components/editor/collab-editor";
 import { PresenceBar } from "@/components/editor/presence-bar";
 import { ShareDialog } from "@/components/documents/share-dialog";
 import { VersionHistory } from "@/components/documents/version-history";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 const SYNC_WS_URL = process.env.NEXT_PUBLIC_SYNC_WS_URL ?? "ws://localhost:1234";
 
@@ -40,7 +44,6 @@ export function EditorClient({ documentId }) {
   const [title, setTitle] = useState("");
   const titleTimer = useRef(null);
 
-  // Stable CRDT document for this session.
   const ydoc = useMemo(() => new Y.Doc(), []);
   const providerRef = useRef(null);
 
@@ -58,12 +61,9 @@ export function EditorClient({ documentId }) {
         setTitle(data.document.title ?? "");
       })
       .catch((err) => setError(err.message));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [documentId, qs]);
 
-  // WebSocket lifecycle: connect on load, auto-reconnect on disconnect.
   const docId = doc?.id ?? null;
   useEffect(() => {
     if (!docId) return undefined;
@@ -80,7 +80,6 @@ export function EditorClient({ documentId }) {
       }
       if (cancelledAsync || disposed) return;
 
-      // y-websocket joins `${serverUrl}/${roomname}`.
       let room = `ws?docId=${encodeURIComponent(docId)}`;
       if (token) room += `&token=${encodeURIComponent(token)}`;
       else if (shareToken) room += `&share=${encodeURIComponent(shareToken)}`;
@@ -161,8 +160,8 @@ export function EditorClient({ documentId }) {
         <AppHeader backHref="/documents" />
         <main className="flex flex-1 items-center justify-center text-center">
           <div>
-            <p className="text-lg font-medium">Can’t open this document</p>
-            <p className="mt-2 text-sm" style={{ color: "var(--inkwell-muted)" }}>{error}</p>
+            <p className="text-lg font-medium">Can&apos;t open this document</p>
+            <p className="mt-2 text-sm text-muted-foreground">{error}</p>
           </div>
         </main>
       </div>
@@ -173,10 +172,7 @@ export function EditorClient({ documentId }) {
     return (
       <div className="flex min-h-screen flex-col">
         <AppHeader backHref="/documents" />
-        <main
-          className="flex flex-1 items-center justify-center text-sm"
-          style={{ color: "var(--inkwell-muted)" }}
-        >
+        <main className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
           Loading…
         </main>
       </div>
@@ -190,30 +186,29 @@ export function EditorClient({ documentId }) {
     <>
       <ConnBadge state={connState} />
       <PresenceBar peers={peers} />
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         onClick={() => setShowVersions((v) => !v)}
-        className="rounded-md border px-3 py-1.5 text-sm"
-        style={{ borderColor: "var(--inkwell-line)" }}
       >
+        <History className="h-4 w-4" />
         History
-      </button>
+      </Button>
       {role === "OWNER" ? (
         <>
-          <button
-            onClick={() => setShowShare(true)}
-            className="rounded-md px-3 py-1.5 text-sm font-medium text-white"
-            style={{ background: "var(--inkwell-accent)" }}
-          >
+          <Button size="sm" onClick={() => setShowShare(true)}>
+            <Share2 className="h-4 w-4" />
             Share
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive"
             onClick={deleteDoc}
-            className="text-sm"
-            style={{ color: "var(--inkwell-danger)" }}
             title="Move to trash"
           >
-            Delete
-          </button>
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </>
       ) : null}
     </>
@@ -222,16 +217,13 @@ export function EditorClient({ documentId }) {
   return (
     <div className="flex min-h-screen w-full flex-col">
       <AppHeader backHref="/documents" actions={actions} title="" />
-      <div
-        className="border-b px-8 py-3"
-        style={{ borderColor: "var(--inkwell-line)", background: "var(--inkwell-paper)" }}
-      >
+      <div className="border-b border-border bg-card px-8 py-3">
         <input
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
           disabled={!canEditContent}
           placeholder="Untitled"
-          className="w-full bg-transparent text-2xl font-semibold outline-none"
+          className="w-full bg-transparent text-2xl font-semibold outline-none placeholder:text-muted-foreground"
         />
       </div>
 
@@ -255,26 +247,25 @@ export function EditorClient({ documentId }) {
         ) : null}
       </div>
 
-      {showShare ? (
-        <ShareDialog documentId={doc.id} onClose={() => setShowShare(false)} />
-      ) : null}
+      <ShareDialog
+        documentId={doc.id}
+        open={showShare}
+        onOpenChange={setShowShare}
+      />
     </div>
   );
 }
 
 function ConnBadge({ state }) {
   const map = {
-    connected: { label: "Live", color: "#10b981" },
-    connecting: { label: "Connecting…", color: "#f59e0b" },
-    disconnected: { label: "Reconnecting…", color: "#ef4444" },
+    connected: { label: "Live", color: "bg-emerald-500" },
+    connecting: { label: "Connecting…", color: "bg-amber-500" },
+    disconnected: { label: "Reconnecting…", color: "bg-rose-500" },
   };
   const s = map[state] ?? map.connecting;
   return (
-    <span
-      className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs"
-      style={{ borderColor: "var(--inkwell-line)" }}
-    >
-      <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
+    <span className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">
+      <span className={cn("h-2 w-2 rounded-full", s.color)} />
       {s.label}
     </span>
   );

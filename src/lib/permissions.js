@@ -1,3 +1,5 @@
+import { prisma } from '@/lib/prisma';
+
 export const ROLES = {
   OWNER: 'OWNER',
   EDITOR: 'EDITOR',

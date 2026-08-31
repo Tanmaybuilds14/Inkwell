@@ -3,16 +3,28 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Show } from "@clerk/nextjs";
+import { Show } from "@@clerk/nextjs";
+import { Plus, FolderPlus, Trash2, Pencil, FileText, Search } from "lucide-react";
 import { api } from "@/components/app-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export function Dashboard() {
   const router = useRouter();
   const [folders, setFolders] = useState(null);
   const [docs, setDocs] = useState(null);
-  const [activeFolderId, setActiveFolderId] = useState(null); // null = root
+  const [activeFolderId, setActiveFolderId] = useState(null);
   const [query, setQuery] = useState("");
-  const [scope, setScope] = useState("owned"); // owned | shared
+  const [scope, setScope] = useState("owned");
   const [error, setError] = useState(null);
 
   const refreshFolders = useCallback(
@@ -43,9 +55,7 @@ export function Dashboard() {
     api("/api/folders")
       .then((data) => !cancelled && setFolders(data.folders))
       .catch((err) => !cancelled && setError(err.message));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -64,9 +74,7 @@ export function Dashboard() {
         }
       })
       .catch((err) => !cancelled && setError(err.message));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [activeFolderId, query, scope]);
 
   async function createDocument(folderId = null) {
@@ -120,22 +128,14 @@ export function Dashboard() {
     <Show when="signed-in">
       <div className="flex w-full flex-1">
         {/* Folder sidebar */}
-        <aside
-          className="hidden w-60 shrink-0 border-r p-4 md:block"
-          style={{ borderColor: "var(--inkwell-line)" }}
-        >
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--inkwell-muted)" }}>
+        <aside className="hidden w-60 shrink-0 border-r border-border bg-card/30 p-4 md:block">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Folders
             </span>
-            <button
-              onClick={createFolder}
-              className="text-lg leading-none"
-              style={{ color: "var(--inkwell-accent)" }}
-              title="New folder"
-            >
-              +
-            </button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={createFolder} title="New folder">
+              <FolderPlus className="h-4 w-4" />
+            </Button>
           </div>
           <nav className="flex flex-col gap-0.5 text-sm">
             <SidebarLink active={activeFolderId === null} onClick={() => setActiveFolderId(null)}>
@@ -148,18 +148,23 @@ export function Dashboard() {
                   onClick={() => setActiveFolderId(f.id)}
                 >
                   <span className="flex-1 truncate">{f.name}</span>
-                  <span className="mr-1 text-xs opacity-50">{f._count.documents}</span>
+                  <span className="mr-1 text-xs text-muted-foreground">{f._count.documents}</span>
                 </SidebarLink>
                 <span className="flex">
-                  <button title="Rename" onClick={() => renameFolder(f)} className="px-1 opacity-40 hover:opacity-100">✎</button>
-                  <button title="Delete" onClick={() => deleteFolder(f)} className="px-1 opacity-40 hover:opacity-100">✕</button>
+                  <button title="Rename" onClick={() => renameFolder(f)} className="px-1 text-muted-foreground transition-opacity hover:text-foreground">
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                  <button title="Delete" onClick={() => deleteFolder(f)} className="px-1 text-muted-foreground transition-opacity hover:text-destructive">
+                    <Trash2 className="h-3 w-3" />
+                  </button>
                 </span>
               </SidebarGroup>
             ))}
           </nav>
-          <div className="mt-6 border-t pt-4" style={{ borderColor: "var(--inkwell-line)" }}>
-            <Link href="/trash" className="text-sm hover:underline" style={{ color: "var(--inkwell-muted)" }}>
-              🗑 Trash
+          <div className="mt-6 border-t border-border pt-4">
+            <Link href="/trash" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+              <Trash2 className="h-4 w-4" />
+              Trash
             </Link>
           </div>
         </aside>
@@ -168,81 +173,78 @@ export function Dashboard() {
         <main className="flex-1 px-8 py-6">
           <div className="mx-auto max-w-3xl">
             <div className="mb-6 flex items-center gap-3">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by title…"
-                className="flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:border-teal-600"
-                style={{ borderColor: "var(--inkwell-line)" }}
-              />
-              <select
-                value={scope}
-                onChange={(e) => setScope(e.target.value)}
-                className="rounded-lg border bg-transparent px-2 py-2 text-sm"
-                style={{ borderColor: "var(--inkwell-line)" }}
-              >
-                <option value="owned">Owned by me</option>
-                <option value="shared">Shared with me</option>
-              </select>
-              <button
-                onClick={() => createDocument(scope === "owned" ? activeFolderId : null)}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-white"
-                style={{ background: "var(--inkwell-accent)" }}
-              >
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search by title…"
+                  className="pl-9"
+                />
+              </div>
+              <Select value={scope} onValueChange={setScope}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="owned">Owned by me</SelectItem>
+                  <SelectItem value="shared">Shared with me</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={() => createDocument(scope === "owned" ? activeFolderId : null)}>
+                <Plus className="h-4 w-4" />
                 New document
-              </button>
+              </Button>
             </div>
 
             {error ? (
-              <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>
+              <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>
             ) : null}
 
             {docs === null ? (
-              <p className="text-sm" style={{ color: "var(--inkwell-muted)" }}>Loading…</p>
+              <p className="text-sm text-muted-foreground">Loading…</p>
             ) : docs.length === 0 ? (
-              <p className="mt-16 text-center text-sm" style={{ color: "var(--inkwell-muted)" }}>
-                No documents yet — click “New document” to start writing.
-              </p>
+              <div className="mt-16 flex flex-col items-center text-center">
+                <FileText className="h-12 w-12 text-muted-foreground/50" />
+                <p className="mt-4 text-sm text-muted-foreground">
+                  No documents yet — click &ldquo;New document&rdquo; to start writing.
+                </p>
+              </div>
             ) : (
-              <ul className="divide-y" style={{ borderColor: "var(--inkwell-line)" }}>
+              <ul className="divide-y divide-border">
                 {docs.map((doc) => (
                   <li key={doc.id} className="group flex items-center gap-3 py-3">
                     <Link
                       href={`/documents/${doc.id}`}
-                      className="flex-1 truncate font-medium hover:underline"
+                      className="flex flex-1 items-center gap-2 truncate font-medium transition-colors hover:text-primary"
                     >
+                      <FileText className="h-4 w-4 text-muted-foreground" />
                       {doc.title || "Untitled"}
-                      {doc.shareEnabled ? (
-                        <span className="ml-2 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide"
-                          style={{ background: "var(--inkwell-accent-soft)", color: "var(--inkwell-accent)" }}>
-                          shared link
-                        </span>
-                      ) : null}
+                      {doc.shareEnabled ? <Badge variant="default">shared link</Badge> : null}
                     </Link>
-                    <span className="text-xs" style={{ color: "var(--inkwell-muted)" }}>
+                    <span className="text-xs text-muted-foreground">
                       {new Date(doc.updatedAt).toLocaleString()}
                     </span>
-                    <select
-                      value=""
-                      onChange={(e) => moveDoc(doc, e.target.value || null)}
-                      className="rounded border bg-transparent px-1 py-0.5 text-xs opacity-0 group-hover:opacity-100"
-                      style={{ borderColor: "var(--inkwell-line)" }}
-                      title="Move to folder"
-                    >
-                      <option value="">Move to…</option>
-                      <option value="">(root)</option>
-                      {(folders ?? []).map((f) => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
-                      ))}
-                    </select>
+                    <Select onValueChange={(val) => moveDoc(doc, val || null)}>
+                      <SelectTrigger className="w-[120px] text-xs opacity-0 group-hover:opacity-100">
+                        <SelectValue placeholder="Move to…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">(root)</SelectItem>
+                        {(folders ?? []).map((f) => (
+                          <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     {scope === "owned" ? (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive opacity-0 group-hover:opacity-100"
                         onClick={() => deleteDoc(doc)}
-                        className="text-xs opacity-0 group-hover:opacity-60 hover:!opacity-100"
-                        style={{ color: "var(--inkwell-danger)" }}
                       >
                         Delete
-                      </button>
+                      </Button>
                     ) : null}
                   </li>
                 ))}
@@ -259,8 +261,10 @@ function SidebarLink({ active, onClick, children }) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-1 items-center rounded-md px-2 py-1.5 text-left ${active ? "font-medium" : ""}`}
-      style={active ? { background: "var(--inkwell-accent-soft)", color: "var(--inkwell-accent)" } : {}}
+      className={cn(
+        "flex flex-1 items-center rounded-md px-2 py-1.5 text-left transition-colors",
+        active ? "bg-primary/10 font-medium text-primary" : "hover:bg-accent"
+      )}
     >
       {children}
     </button>
@@ -270,4 +274,3 @@ function SidebarLink({ active, onClick, children }) {
 function SidebarGroup({ children }) {
   return <div className="flex items-center">{children}</div>;
 }
-

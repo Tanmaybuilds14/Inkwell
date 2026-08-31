@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Show } from "@clerk/nextjs";
+import { Trash2, RotateCcw, FileText } from "lucide-react";
 import { AppHeader, api } from "@/components/app-header";
+import { Button } from "@/components/ui/button";
 
 export default function TrashPage() {
   const [docs, setDocs] = useState(null);
@@ -29,9 +30,7 @@ export default function TrashPage() {
         }
       })
       .catch((err) => !cancelled && setError(err.message));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [reloadKey]);
 
   async function restore(doc) {
@@ -51,48 +50,53 @@ export default function TrashPage() {
         <AppHeader backHref="/documents" />
         <main className="mx-auto w-full max-w-3xl flex-1 px-8 py-6">
           <div className="mb-4 flex items-center justify-between">
-            <h1 className="text-xl font-semibold">Trash</h1>
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-muted-foreground" />
+              <h1 className="text-xl font-semibold">Trash</h1>
+            </div>
             {docs !== null && docs.length > 0 ? (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive"
                 onClick={async () => {
                   if (!confirm("Permanently delete everything in trash?")) return;
                   await api("/api/trash", { method: "DELETE" });
                   load();
                 }}
-                className="text-sm"
-                style={{ color: "var(--inkwell-danger)" }}
               >
                 Empty trash
-              </button>
+              </Button>
             ) : null}
           </div>
 
-            {docs === null ? (
-              <p className="text-sm" style={{ color: "var(--inkwell-muted)" }}>Loading…</p>
-            ) : error ? (
-              <p className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</p>
-            ) : docs.length === 0 ? (
-            <p className="mt-16 text-center text-sm" style={{ color: "var(--inkwell-muted)" }}>
-              Trash is empty. Deleted documents stay here for 30 days before being purged.
-            </p>
+          {docs === null ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : error ? (
+            <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>
+          ) : docs.length === 0 ? (
+            <div className="mt-16 flex flex-col items-center text-center">
+              <Trash2 className="h-12 w-12 text-muted-foreground/50" />
+              <p className="mt-4 text-sm text-muted-foreground">
+                Trash is empty. Deleted documents stay here for 30 days before being purged.
+              </p>
+            </div>
           ) : (
-            <ul className="divide-y" style={{ borderColor: "var(--inkwell-line)" }}>
+            <ul className="divide-y divide-border">
               {docs.map((doc) => (
                 <li key={doc.id} className="flex items-center gap-3 py-3">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
                   <span className="flex-1 truncate">{doc.title || "Untitled"}</span>
-                  <span className="text-xs" style={{ color: "var(--inkwell-muted)" }}>
+                  <span className="text-xs text-muted-foreground">
                     deleted {new Date(doc.deletedAt).toLocaleString()}
                   </span>
-                  <button
-                    onClick={() => restore(doc)}
-                    className="rounded-md border px-2 py-1 text-xs"
-                    style={{ borderColor: "var(--inkwell-line)" }}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => restore(doc)}>
+                    <RotateCcw className="h-3.5 w-3.5" />
                     Restore
-                  </button>
-                  <button onClick={() => purge(doc)} className="text-xs" style={{ color: "var(--inkwell-danger)" }}>
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => purge(doc)}>
                     Delete forever
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -102,4 +106,3 @@ export default function TrashPage() {
     </Show>
   );
 }
-
