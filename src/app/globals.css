@@ -5,83 +5,83 @@
 
 /* ---- Light theme (default) ---- */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #fafaf9;
+  --foreground: #1c1917;
 
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #1c1917;
 
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  --popover-foreground: #1c1917;
 
-  --primary: #0d9488;
-  --primary-foreground: #f0fdfa;
+  --primary: #18181b;
+  --primary-foreground: #fafaf9;
 
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
+  --secondary: #f5f5f4;
+  --secondary-foreground: #1c1917;
 
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
+  --muted: #f5f5f4;
+  --muted-foreground: #78716c;
 
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
+  --accent: #f5f5f4;
+  --accent-foreground: #1c1917;
 
-  --destructive: #e11d48;
-  --destructive-foreground: #fff1f2;
+  --destructive: #dc2626;
+  --destructive-foreground: #fafaf9;
 
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #0d9488;
+  --border: #e7e5e4;
+  --input: #e7e5e4;
+  --ring: #18181b;
 
-  /* Inkwell-specific tokens (kept for editor surface) */
+  /* Inkwell-specific tokens */
   --inkwell-paper: #ffffff;
-  --inkwell-ink: #0f172a;
-  --inkwell-line: #e2e8f0;
-  --inkwell-accent: #0d9488;
-  --inkwell-accent-hover: #0f766e;
-  --inkwell-accent-soft: #f0fdfa;
-  --inkwell-muted: #64748b;
-  --inkwell-danger: #e11d48;
+  --inkwell-ink: #1c1917;
+  --inkwell-line: #e7e5e4;
+  --inkwell-accent: #18181b;
+  --inkwell-accent-hover: #27272a;
+  --inkwell-accent-soft: #f5f5f4;
+  --inkwell-muted: #78716c;
+  --inkwell-danger: #dc2626;
 }
 
 /* ---- Dark theme (.dark on <html>) ---- */
 .dark {
-  --background: #0f172a;
-  --foreground: #f1f5f9;
+  --background: #0c0a09;
+  --foreground: #fafaf9;
 
-  --card: #1e293b;
-  --card-foreground: #f1f5f9;
+  --card: #1c1917;
+  --card-foreground: #fafaf9;
 
-  --popover: #1e293b;
-  --popover-foreground: #f1f5f9;
+  --popover: #1c1917;
+  --popover-foreground: #fafaf9;
 
-  --primary: #2dd4bf;
-  --primary-foreground: #042f2e;
+  --primary: #fafaf9;
+  --primary-foreground: #18181b;
 
-  --secondary: #334155;
-  --secondary-foreground: #f1f5f9;
+  --secondary: #292524;
+  --secondary-foreground: #fafaf9;
 
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
+  --muted: #1c1917;
+  --muted-foreground: #a8a29e;
 
-  --accent: #334155;
-  --accent-foreground: #f1f5f9;
+  --accent: #292524;
+  --accent-foreground: #fafaf9;
 
-  --destructive: #fb7185;
-  --destructive-foreground: #4c0519;
+  --destructive: #ef4444;
+  --destructive-foreground: #fafaf9;
 
-  --border: #334155;
-  --input: #334155;
-  --ring: #2dd4bf;
+  --border: #292524;
+  --input: #292524;
+  --ring: #fafaf9;
 
-  --inkwell-paper: #1e293b;
-  --inkwell-ink: #f1f5f9;
-  --inkwell-line: #334155;
-  --inkwell-accent: #2dd4bf;
-  --inkwell-accent-hover: #5eead4;
-  --inkwell-accent-soft: #134e4a;
-  --inkwell-muted: #94a3b8;
-  --inkwell-danger: #fb7185;
+  --inkwell-paper: #1c1917;
+  --inkwell-ink: #fafaf9;
+  --inkwell-line: #292524;
+  --inkwell-accent: #fafaf9;
+  --inkwell-accent-hover: #e7e5e4;
+  --inkwell-accent-soft: #292524;
+  --inkwell-muted: #a8a29e;
+  --inkwell-danger: #ef4444;
 }
 
 @theme inline {
@@ -105,20 +105,51 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Smooth theme transition */
+/* Smooth theme transition — only for backgrounds and borders */
 * {
   transition-property: background-color, border-color;
   transition-duration: 150ms;
+}
+
+/* ---- Scroll reveal animations ---- */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+.reveal-delay-5 { transition-delay: 0.5s; }
+
+/* Fade in for staggered children */
+.reveal-stagger {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal-stagger.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ---- Inkwell editor surface ---- */
@@ -143,7 +174,7 @@ body {
 .inkwell-editor .ProseMirror ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
 .inkwell-editor .ProseMirror ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
 .inkwell-editor .ProseMirror blockquote {
-  border-left: 3px solid var(--primary);
+  border-left: 2px solid var(--border);
   padding-left: 1rem;
   color: var(--muted-foreground);
   margin: 0.75rem 0;
@@ -188,16 +219,16 @@ body {
 .version-preview .ProseMirror { min-height: unset; }
 
 /* Scrollbar styling */
-::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
 
 /* Radix UI animations */
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes zoom-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-@keyframes zoom-out { from { transform: scale(1); opacity: 1; } to { transform: scale(0.95); opacity: 0; } }
+@keyframes zoom-in { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes zoom-out { from { transform: scale(1); opacity: 1; } to { transform: scale(0.96); opacity: 0; } }
 
 .animate-in { animation-duration: 200ms; animation-fill-mode: both; }
 .animate-out { animation-duration: 200ms; animation-fill-mode: both; }

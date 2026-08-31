@@ -8,9 +8,7 @@ import { cn } from "@/lib/utils";
 
 export function AppHeader({ title = "Inkwell", actions = null, backHref = null }) {
   return (
-    <header
-      className="flex h-14 w-full items-center justify-between border-b border-border bg-card/50 backdrop-blur-sm px-4"
-    >
+    <header className="flex h-14 w-full items-center justify-between border-b border-border bg-background px-4 md:px-6">
       <div className="flex items-center gap-3">
         {backHref ? (
           <Link
@@ -20,8 +18,8 @@ export function AppHeader({ title = "Inkwell", actions = null, backHref = null }
             ← Back
           </Link>
         ) : null}
-        <Link href="/documents" className="flex items-center gap-2 font-semibold tracking-tight">
-          <Feather className="h-4 w-4 text-primary" />
+        <Link href="/documents" className="flex items-center gap-2 text-sm font-medium tracking-tight">
+          <Feather className="h-4 w-4" strokeWidth={1.5} />
           {title}
         </Link>
       </div>

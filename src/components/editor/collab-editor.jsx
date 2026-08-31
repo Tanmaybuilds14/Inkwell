@@ -62,7 +62,7 @@ export function CollabEditor({ documentId, ydoc, getProvider, role }) {
               Collaboration.configure({ document: ydoc }),
               CollaborationCaret.configure({
                 provider: getProvider(),
-                user: getProvider()?.awareness?.getLocalState()?.user ?? { name: "You", color: "#0f766e" },
+                user: getProvider()?.awareness?.getLocalState()?.user ?? { name: "You", color: "#44403c" },
               }),
             ]
           : []),
