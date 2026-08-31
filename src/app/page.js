@@ -73,7 +73,7 @@ export default function LandingPage() {
       {/* Hero with floating parallax cards */}
       <ParallaxHero />
 
-      {/* Feature sections */}
+      {/* Feature sections — each aspect described in detail */}
       {SECTIONS.map((s, i) => (
         <FeatureSection key={s.label} {...s} index={i} />
       ))}
