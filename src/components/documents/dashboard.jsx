@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Show } from "@@clerk/nextjs";
-import { Plus, FolderPlus, Trash2, Pencil, FileText, Search } from "lucide-react";
+import { Show } from "@clerk/nextjs";
+import { Plus, ChevronDown, FileText, FolderOpen, Trash2, Pencil, Search } from "lucide-react";
 import { api } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 export function Dashboard() {
@@ -129,13 +135,10 @@ export function Dashboard() {
       <div className="flex w-full flex-1">
         {/* Folder sidebar */}
         <aside className="hidden w-60 shrink-0 border-r border-border bg-card/30 p-4 md:block">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Folders
             </span>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={createFolder} title="New folder">
-              <FolderPlus className="h-4 w-4" />
-            </Button>
           </div>
           <nav className="flex flex-col gap-0.5 text-sm">
             <SidebarLink active={activeFolderId === null} onClick={() => setActiveFolderId(null)}>
@@ -191,10 +194,25 @@ export function Dashboard() {
                   <SelectItem value="shared">Shared with me</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={() => createDocument(scope === "owned" ? activeFolderId : null)}>
-                <Plus className="h-4 w-4" />
-                New document
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4" />
+                    New
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => createDocument(scope === "owned" ? activeFolderId : null)}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    New document
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={createFolder}>
+                    <FolderOpen className="mr-2 h-4 w-4" />
+                    New folder
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {error ? (
@@ -207,7 +225,7 @@ export function Dashboard() {
               <div className="mt-16 flex flex-col items-center text-center">
                 <FileText className="h-12 w-12 text-muted-foreground/50" />
                 <p className="mt-4 text-sm text-muted-foreground">
-                  No documents yet — click &ldquo;New document&rdquo; to start writing.
+                  No documents yet — click &ldquo;New&rdquo; to create a document or folder.
                 </p>
               </div>
             ) : (
