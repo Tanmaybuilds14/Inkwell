@@ -13,14 +13,14 @@ export function apiError(status, message) {
  * Fail-closed: missing auth, missing doc, or insufficient role all deny.
  * Returns { user, doc, role } or throws a Response to bubble up.
  */
-export async function requireDocument(request, documentId, requiredRole, { allowShareToken = true } = {}) {
+export async function requireDocument(request, documentId, requiredRole, { allowShareToken = true, allowTrashed = false } = {}) {
   const { getCurrentUser } = await import('@/lib/auth');
   const user = await getCurrentUser();
 
   const url = new URL(request.url);
   const shareToken = allowShareToken ? url.searchParams.get('share') : null;
 
-  const { role, document } = await resolveDocumentRole(documentId, user?.id ?? null, { shareToken });
+  const { role, document } = await resolveDocumentRole(documentId, user?.id ?? null, { shareToken, allowTrashed });
 
   if (!document || !role) {
     // Distinguish existence vs access only for owners; everyone else gets 404.

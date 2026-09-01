@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { handle, apiError, json, requireDocument } from '@/lib/api-helpers';
-import { publishToDocument } from '@/lib/redis';
+import { publishToDocument, MESSAGE_KINDS } from '@/lib/redis';
 import { track, EVENTS } from '@/lib/telemetry';
 
 /**
@@ -51,8 +51,9 @@ export async function POST(request, { params }) {
 
     // 3. Live rooms swap + rebroadcast. If no room is open this is a no-op;
     //    fresh joins load documents.snapshot anyway.
+    // Cross-reference: sync-service/src/rooms.js checks msg.kind === 'apply-snapshot'
     await publishToDocument(id, {
-      type: 'apply-snapshot',
+      kind: MESSAGE_KINDS.APPLY_SNAPSHOT,
       update: Buffer.from(version.snapshot).toString('base64'),
     });
 

@@ -5,7 +5,7 @@ import { track, EVENTS } from '@/lib/telemetry';
 export async function POST(request, { params }) {
   return handle(async () => {
     const { id } = await params;
-    const { user } = await requireDocument(request, id, 'OWNER');
+    const { user } = await requireDocument(request, id, 'OWNER', { allowTrashed: true });
 
     const doc = await prisma.document.findUnique({
       where: { id },

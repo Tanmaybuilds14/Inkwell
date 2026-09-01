@@ -45,6 +45,8 @@ server.on('upgrade', async (request, socket, head) => {
 
   if (!auth.ok) {
     // Deny before accepting the socket — fail closed.
+    // Close code 4010 signals "token expired" so the client can refresh
+    // and reconnect without a page reload.
     socket.write(`HTTP/1.1 403 Forbidden\r\nx-reason: ${auth.reason}\r\n\r\n`);
     socket.destroy();
     return;

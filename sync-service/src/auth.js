@@ -1,9 +1,23 @@
+import crypto from 'node:crypto';
 import { verifyToken } from '@clerk/backend';
 import {
   getDocumentForAuth,
   getUserByClerkId,
   getUserRoleForDocument,
 } from './db.js';
+
+/**
+ * Timing-safe string comparison to prevent timing attacks on bearer tokens
+ * (share tokens). Falls back to false on length mismatch without throwing.
+ * Cross-reference: src/lib/permissions.js has the equivalent function.
+ */
+function timingSafeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a.length !== b.length) return false;
+  const bufA = Buffer.from(a, 'utf8');
+  const bufB = Buffer.from(b, 'utf8');
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 const GUEST_NAMES = ['Guest Wren', 'Guest Finch', 'Guest Heron', 'Guest Swift', 'Guest Lark'];
 
@@ -47,12 +61,15 @@ export async function authenticateHandshake({ docId, token, shareToken }) {
       };
     } catch (err) {
       console.error('[auth] clerk token rejected:', err.message);
-      return { ok: false, code: 4001, reason: 'Invalid token' };
+      // Distinguish expired/invalid tokens (4010) from other auth failures
+      // (4001) so the client can specifically refresh its token and retry.
+      const isExpired = err.message?.includes('expired') || err.message?.includes('token has expired');
+      return { ok: false, code: isExpired ? 4010 : 4001, reason: 'Invalid token' };
     }
   }
 
   // Path 2: guest via active share link.
-  if (shareToken && doc.shareEnabled && doc.shareToken === shareToken) {
+  if (shareToken && doc.shareEnabled && timingSafeEqual(doc.shareToken, shareToken)) {
     return {
       ok: true,
       identity: {

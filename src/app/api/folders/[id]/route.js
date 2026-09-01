@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { handle, apiError, json } from '@/lib/api-helpers';
 
+const MAX_ANCESTOR_DEPTH = 100;
+
 async function requireOwnFolder(folderId, userId) {
   const folder = await prisma.folder.findFirst({
     where: { id: folderId, ownerId: userId },
@@ -9,6 +11,26 @@ async function requireOwnFolder(folderId, userId) {
   });
   if (!folder) throw apiError(404, 'Folder not found');
   return folder;
+}
+
+/**
+ * Walks up from candidateParentId following parentId pointers to detect
+ * cycles. Returns true if folderId appears in the ancestor chain or the
+ * walk exceeds MAX_ANCESTOR_DEPTH (safety guard against corrupt data).
+ */
+async function wouldCreateCycle(folderId, candidateParentId) {
+  let currentId = candidateParentId;
+  for (let depth = 0; depth < MAX_ANCESTOR_DEPTH; depth++) {
+    if (currentId === folderId) return true;
+    const row = await prisma.folder.findUnique({
+      where: { id: currentId },
+      select: { parentId: true },
+    });
+    if (!row || !row.parentId) return false;
+    currentId = row.parentId;
+  }
+  // Exceeded depth cap — treat as cycle to be safe.
+  return true;
 }
 
 export async function PATCH(request, { params }) {
@@ -33,6 +55,9 @@ export async function PATCH(request, { params }) {
           select: { id: true },
         });
         if (!parent) return apiError(404, 'Parent folder not found');
+        if (await wouldCreateCycle(id, body.parentId)) {
+          return apiError(400, 'Cannot move a folder into its own subfolder');
+        }
         data.parentId = parent.id;
       }
     }

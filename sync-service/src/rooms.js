@@ -3,13 +3,16 @@ import * as syncProtocol from 'y-protocols/sync';
 import * as awarenessProtocol from 'y-protocols/awareness';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
+import Redis from 'ioredis';
 import {
   getDocumentSnapshot,
   getDocumentTitle,
   persistSnapshot,
   createVersionSnapshot,
 } from './db.js';
-import { subscribeToDocument, publishMessage } from './broadcast.js';
+import { subscribeToDocument, publishMessage, MESSAGE_KINDS } from './broadcast.js';
+// Cross-reference: src/lib/redis.js defines the same MESSAGE_KINDS values.
+// The Next.js restore route publishes with these kinds via publishToDocument().
 
 const MESSAGE_SYNC = 0;
 const MESSAGE_AWARENESS = 1;
@@ -20,6 +23,54 @@ const SYNC_STEP2_UPDATE = 1;
 const PERSIST_INTERVAL_MS = 5_000;
 const VERSION_INTERVAL_MS = 5 * 60_000;
 const EMPTY_ROOM_TTL_MS = 60_000;
+
+// ---- Redis leader lock for cross-instance persistence ----
+// Only the instance holding the lock for a docId persists snapshots to DB.
+// Uses SET NX PX (plain Redis, not Redlock — fine for a single Redis instance).
+// If Redis is ever run in a clustered/HA config, revisit with Redlock.
+const LOCK_TTL_MS = 15_000;
+const LOCK_KEY_PREFIX = 'inkwell:lock:doc:';
+const INSTANCE_ID = `inst-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
+
+let lockRedis = null;
+function getLockRedis() {
+  if (!lockRedis) {
+    const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
+    lockRedis = new Redis(url, { maxRetriesPerRequest: 1 });
+    lockRedis.on('error', (err) => console.error('[redis] lock error:', err.message));
+  }
+  return lockRedis;
+}
+
+/** Try to acquire or renew the persistence lock for a document. */
+export async function acquireLock(docId) {
+  try {
+    const key = LOCK_KEY_PREFIX + docId;
+    const redis = getLockRedis();
+    // SET key value NX PX ttl — only sets if key doesn't exist.
+    const result = await redis.set(key, INSTANCE_ID, 'PX', LOCK_TTL_MS, 'NX');
+    if (result === 'OK') return true;
+    // Key exists — check if we own it (renewal).
+    const owner = await redis.get(key);
+    return owner === INSTANCE_ID;
+  } catch {
+    // Redis unavailable — don't persist to avoid dual-write risk.
+    return false;
+  }
+}
+
+/** Release the persistence lock (only if we own it). */
+export async function releaseLock(docId) {
+  try {
+    const key = LOCK_KEY_PREFIX + docId;
+    const redis = getLockRedis();
+    // Atomic check-and-delete: only delete if we still own it.
+    const script = `if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end`;
+    await redis.eval(script, 1, key, INSTANCE_ID);
+  } catch {
+    // Best-effort — lock will expire via TTL anyway.
+  }
+}
 
 /** Builds a wire message: [type][payload] */
 function wrapMessage(type, payloadBytes) {
@@ -47,18 +98,21 @@ export class Room {
     this.lastActivityAt = Date.now();
 
     // Relay remote edits/awareness into this local replica.
+    // Cross-reference: src/lib/redis.js — the restore route publishes with
+    // kind: MESSAGE_KINDS.APPLY_SNAPSHOT (previously used 'type' field, causing
+    // a silent no-op until the field was aligned to 'kind').
     this.unsubscribe = subscribeToDocument(docId, (msg) => {
       try {
-        if (msg.kind === 'update') {
+        if (msg.kind === MESSAGE_KINDS.UPDATE) {
           const update = new Uint8Array(Buffer.from(msg.update, 'base64'));
           Y.applyUpdate(this.doc, update, 'redis');
           this.broadcastBuffer(wrapMessage(MESSAGE_SYNC, update));
           this.dirty = true;
-        } else if (msg.kind === 'awareness') {
+        } else if (msg.kind === MESSAGE_KINDS.AWARENESS) {
           const aw = new Uint8Array(Buffer.from(msg.awareness, 'base64'));
           awarenessProtocol.applyAwarenessUpdate(this.awareness, aw, 'redis');
           this.broadcastBuffer(wrapMessage(MESSAGE_AWARENESS, aw));
-        } else if (msg.kind === 'apply-snapshot') {
+        } else if (msg.kind === MESSAGE_KINDS.APPLY_SNAPSHOT) {
           this.applySnapshotHotSwap(Buffer.from(msg.update, 'base64'));
         }
       } catch (err) {
@@ -231,6 +285,12 @@ export class Room {
   async persist() {
     if (!this.dirty || this.conns.size === 0) return;
     this.dirty = false;
+
+    // Only the instance holding the Redis persistence lock writes to DB.
+    // Other instances keep relaying live updates via pub/sub (unaffected)
+    // but skip the DB write to prevent duplicate/stale snapshots.
+    if (!(await acquireLock(this.docId))) return;
+
     const snapshot = Buffer.from(Y.encodeStateAsUpdate(this.doc));
     try {
       await persistSnapshot({
@@ -264,6 +324,7 @@ export class Room {
       this.unsubscribe?.();
       this.awareness.destroy();
       this.doc.destroy();
+      releaseLock(this.docId).catch(() => {});
     } catch {
       /* ignore */
     }

@@ -1,6 +1,17 @@
 import Redis from 'ioredis';
 
 /**
+ * Message-kind constants shared (by value) with sync-service/src/broadcast.js.
+ * Both deployables cannot share a literal module, so the string values must
+ * stay identical — cross-reference: sync-service/src/broadcast.js
+ */
+export const MESSAGE_KINDS = {
+  UPDATE: 'update',
+  AWARENESS: 'awareness',
+  APPLY_SNAPSHOT: 'apply-snapshot',
+};
+
+/**
  * Publisher connection used by Next.js API routes to reach live sync-service
  * rooms (e.g. version restores). Channels are namespaced per document ID so
  * messages can never leak across documents.

@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npx prisma generate
+      - name: Run tests
+        run: npx vitest run 2>&1 | tee test-output.txt
+      - name: Guard against zero test files
+        run: |
+          if grep -q "No test files found" test-output.txt; then
+            echo "ERROR: No test files discovered — tests may have been gitignored."
+            exit 1
+          fi
+      - name: Lint
+        run: npm run lint

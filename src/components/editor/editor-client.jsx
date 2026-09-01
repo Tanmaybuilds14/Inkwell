@@ -17,6 +17,10 @@ import { cn } from "@/lib/utils";
 
 const SYNC_WS_URL = process.env.NEXT_PUBLIC_SYNC_WS_URL ?? "ws://localhost:1234";
 
+// After this many consecutive disconnected→connecting→disconnected cycles
+// without a successful 'connected' in between, treat the token as stale.
+const STALE_TOKEN_THRESHOLD = 2;
+
 const PRESENCE_COLORS = [
   "#0ea5e9", "#8b5cf6", "#ec4899", "#f59e0b",
   "#10b981", "#ef4444", "#6366f1", "#14b8a6",
@@ -46,6 +50,10 @@ export function EditorClient({ documentId }) {
 
   const ydoc = useMemo(() => new Y.Doc(), []);
   const providerRef = useRef(null);
+  // Track consecutive auth failures to decide when to refresh the token.
+  const consecutiveFailures = useRef(0);
+  // Guard against mounting cleanup racing with a reconnect attempt.
+  const disposedRef = useRef(false);
 
   const qs = useMemo(
     () => (shareToken ? `?share=${encodeURIComponent(shareToken)}` : ""),
@@ -64,23 +72,18 @@ export function EditorClient({ documentId }) {
     return () => { cancelled = true; };
   }, [documentId, qs]);
 
-  const docId = doc?.id ?? null;
-  useEffect(() => {
-    if (!docId) return undefined;
+  /**
+   * Create (or recreate) a WebsocketProvider for the given token.
+   * The same `ydoc` instance is reused — Yjs handles reconciliation via
+   * its normal sync-step handshake automatically.
+   */
+  const connect = useCallback(
+    async (token) => {
+      // Tear down any existing provider first.
+      providerRef.current?.destroy();
+      providerRef.current = null;
 
-    let disposed = false;
-    let cancelledAsync = false;
-
-    (async () => {
-      let token = null;
-      try {
-        token = await getToken();
-      } catch {
-        /* guest flow */
-      }
-      if (cancelledAsync || disposed) return;
-
-      let room = `ws?docId=${encodeURIComponent(docId)}`;
+      let room = `ws?docId=${encodeURIComponent(doc?.id)}`;
       if (token) room += `&token=${encodeURIComponent(token)}`;
       else if (shareToken) room += `&share=${encodeURIComponent(shareToken)}`;
 
@@ -93,7 +96,7 @@ export function EditorClient({ documentId }) {
         user?.fullName ?? user?.username ?? (isSignedIn ? "You" : "Guest");
       provider.awareness.setLocalStateField("user", {
         name: displayName,
-        color: colorFor(user?.id ?? docId),
+        color: colorFor(user?.id ?? doc?.id),
       });
 
       provider.on("status", ({ status }) => {
@@ -104,7 +107,35 @@ export function EditorClient({ documentId }) {
               ? "disconnected"
               : "connecting"
         );
+
+        // Reset the failure counter on a successful connection.
+        if (status === "connected") {
+          consecutiveFailures.current = 0;
+        }
       });
+
+      // Detect auth-related reconnection failures. y-websocket reconnects
+      // automatically using the same URL (stale token). When we see
+      // repeated disconnects without a successful connect in between,
+      // destroy the provider, fetch a fresh token, and reconnect.
+      const onStatus = ({ status }) => {
+        if (status === "disconnected") {
+          consecutiveFailures.current += 1;
+          if (consecutiveFailures.current >= STALE_TOKEN_THRESHOLD && !disposedRef.current) {
+            consecutiveFailures.current = 0;
+            // Fetch a fresh token and reconnect. If getToken fails (e.g.
+            // guest flow), reconnect with share token only.
+            getToken()
+              .then((freshToken) => {
+                if (!disposedRef.current) connect(freshToken);
+              })
+              .catch(() => {
+                if (!disposedRef.current) connect(null);
+              });
+          }
+        }
+      };
+      provider.on("status", onStatus);
 
       const onAwarenessChange = () => {
         const list = [];
@@ -117,15 +148,42 @@ export function EditorClient({ documentId }) {
       };
       provider.awareness.on("change", onAwarenessChange);
       onAwarenessChange();
+
+      return () => {
+        provider.off("status", onStatus);
+        provider.awareness.off("change", onAwarenessChange);
+      };
+    },
+    [doc?.id, shareToken, ydoc, user, isSignedIn, getToken]
+  );
+
+  const docId = doc?.id ?? null;
+  useEffect(() => {
+    if (!docId) return undefined;
+
+    disposedRef.current = false;
+    consecutiveFailures.current = 0;
+    let cleanupStatus;
+
+    (async () => {
+      let token = null;
+      try {
+        token = await getToken();
+      } catch {
+        /* guest flow */
+      }
+      if (disposedRef.current) return;
+
+      cleanupStatus = await connect(token);
     })();
 
     return () => {
-      disposed = true;
-      cancelledAsync = true;
+      disposedRef.current = true;
+      cleanupStatus?.();
       providerRef.current?.destroy();
       providerRef.current = null;
     };
-  }, [docId, getToken, shareToken, ydoc, user, isSignedIn]);
+  }, [docId, getToken, connect]);
 
   useEffect(
     () => () => {
@@ -242,7 +300,15 @@ export function EditorClient({ documentId }) {
             documentId={doc.id}
             qs={qs}
             onClose={() => setShowVersions(false)}
-            onRestored={() => window.location.reload()}
+            onRestored={() => {
+              // The hot-swap via Redis updates all connected clients without
+              // a reload. Show a brief confirmation to the actor.
+              const toast = document.createElement('div');
+              toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-lg border border-border bg-card px-4 py-2 text-sm shadow-md';
+              toast.textContent = 'Version restored';
+              document.body.appendChild(toast);
+              setTimeout(() => toast.remove(), 3000);
+            }}
           />
         ) : null}
       </div>

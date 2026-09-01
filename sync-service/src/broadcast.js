@@ -2,6 +2,17 @@ import Redis from 'ioredis';
 import { applyUpdate, encodeStateAsUpdate } from 'yjs';
 
 /**
+ * Message-kind constants shared (by value) with src/lib/redis.js.
+ * Both deployables cannot share a literal module, so the string values must
+ * stay identical — cross-reference: src/lib/redis.js
+ */
+export const MESSAGE_KINDS = {
+  UPDATE: 'update',
+  AWARENESS: 'awareness',
+  APPLY_SNAPSHOT: 'apply-snapshot',
+};
+
+/**
  * Redis pub/sub relay — lets every sync-service instance share one logical
  * "room" per document across horizontally-scaled instances (PRD Journey 8).
  *

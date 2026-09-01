@@ -24,10 +24,14 @@ export async function GET() {
       take: 200,
     });
 
-    const purgeBefore = new Date(
-      Date.now() + TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000
-    );
-    return json({ documents: docs, purgeBefore });
+    // Compute purgeBefore per-document based on each doc's actual deletedAt.
+    const documents = docs.map((doc) => ({
+      ...doc,
+      purgeBefore: new Date(
+        doc.deletedAt.getTime() + TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000
+      ),
+    }));
+    return json({ documents });
   });
 }
 
