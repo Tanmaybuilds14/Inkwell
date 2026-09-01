@@ -1,6 +1,7 @@
 "use client";
 
 import { ScrollReveal } from "@/components/scroll-reveal";
+import { TypewriterHeading } from "@/components/typewriter-heading";
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,9 +25,7 @@ export function FeatureSection({ label, heading, body, align = "left", index }) 
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
               {label}
             </p>
-            <h2 className="mb-5 text-3xl font-light tracking-tight sm:text-4xl">
-              {heading}
-            </h2>
+            <TypewriterHeading text={heading} />
             <p className="text-base leading-relaxed text-muted-foreground">
               {body}
             </p>

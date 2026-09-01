@@ -152,6 +152,21 @@ body {
   transform: translateY(0);
 }
 
+/* ---- Typewriter cursor ---- */
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.tw-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  background-color: currentColor;
+  vertical-align: text-bottom;
+  animation: blink-cursor 0.8s steps(2) infinite;
+}
+
 /* ---- Parallax hero ---- */
 .parallax-card {
   will-change: transform, opacity;
