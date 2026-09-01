@@ -6,7 +6,7 @@ import { Feather } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
-export function AppHeader({ title = "Inkwell", actions = null, backHref = null }) {
+export function AppHeader({ title = "Inkwell", actions = null, backHref = null, showThemeToggle = true }) {
   return (
     <header className="flex h-14 w-full items-center justify-between border-b border-border bg-background px-4 md:px-6">
       <div className="flex items-center gap-3">
@@ -25,7 +25,7 @@ export function AppHeader({ title = "Inkwell", actions = null, backHref = null }
       </div>
       <div className="flex items-center gap-2">
         {actions}
-        <ThemeToggle />
+        {showThemeToggle ? <ThemeToggle /> : null}
       </div>
     </header>
   );

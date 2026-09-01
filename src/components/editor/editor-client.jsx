@@ -216,7 +216,7 @@ export function EditorClient({ documentId }) {
 
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <AppHeader backHref="/documents" actions={actions} title="" />
+      <AppHeader backHref="/documents" actions={actions} title="" showThemeToggle={false} />
       <div className="border-b border-border bg-card px-8 py-3">
         <input
           value={title}
