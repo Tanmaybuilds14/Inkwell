@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Show } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Feather } from "lucide-react";
+import { AnimatedBackground } from "@/components/animated-background";
+import { AnimatedHeading } from "@/components/animated-heading";
 
 /**
  * Floating description cards that drift at different speeds as the user scrolls,
@@ -77,6 +79,9 @@ export function ParallaxHero() {
 
   return (
     <section className="relative flex flex-col items-center overflow-hidden px-6 pt-32 pb-40 text-center md:pt-48 md:pb-52">
+      {/* Animated dot-grid + gradient background */}
+      <AnimatedBackground />
+
       {/* Floating parallax cards */}
       {cards.map((card) => (
         <FloatingCard
@@ -93,11 +98,13 @@ export function ParallaxHero() {
         <p className="mb-8 text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
           A collaborative document platform
         </p>
-        <h1 className="text-6xl font-light tracking-tight leading-[1.05] sm:text-7xl md:text-8xl">
-          Write together,
-          <br />
-          <span className="font-medium">in real time.</span>
-        </h1>
+        <AnimatedHeading
+          lines={[
+            { text: "Write together," },
+            { text: "in real time.", bold: true },
+          ]}
+          delay={0.4}
+        />
         <p className="mx-auto mt-8 max-w-lg text-base leading-relaxed text-muted-foreground md:text-lg">
           Create, organize, share with granular permissions, and co-edit live
           with conflict-free sync. Open source. Self-hostable.

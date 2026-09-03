@@ -78,6 +78,7 @@ export async function resolveDocumentRole(documentId, userId, { shareToken = nul
       deletedAt: true,
       shareEnabled: true,
       shareRole: true,
+      shareToken: true,
       permissions: {
         where: userId ? { userId } : { id: '__none__' },
         select: { role: true },

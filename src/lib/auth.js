@@ -12,9 +12,6 @@ export async function getCurrentUser() {
 }
 
 export async function ensureUser(clerkId) {
-  const existing = await prisma.user.findUnique({ where: { clerkId } });
-  if (existing) return existing;
-
   // Best-effort profile fetch; a fresh sign-up may not have an email yet.
   let email = `${clerkId}@inkwell.local`;
   let name = null;
@@ -38,9 +35,10 @@ export async function ensureUser(clerkId) {
     });
   }
 
+  // Use upsert directly to avoid TOCTOU race between findUnique and create.
   return prisma.user.upsert({
     where: { clerkId },
-    update: {},
+    update: { email, name },
     create: { clerkId, email, name },
   });
 }

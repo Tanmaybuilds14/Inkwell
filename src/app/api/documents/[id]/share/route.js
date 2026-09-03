@@ -133,8 +133,14 @@ export async function POST(request, { params }) {
 }
 
 async function inngestSendInvite(data) {
-  const { inngest } = await import('@/lib/inngest');
-  await inngest.send({ name: 'inkwell/document.shared', data });
+  try {
+    const { inngest } = await import('@/lib/inngest');
+    await inngest.send({ name: 'inkwell/document.shared', data });
+  } catch (err) {
+    // Best-effort — the permission is already saved; email delivery is
+    // non-critical in dev (Inngest may not be configured).
+    console.warn('[share] Inngest invite send failed:', err.message);
+  }
 }
 
 /** PATCH — change a collaborator's role or manage the share link. Owner only. */
