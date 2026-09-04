@@ -1,20 +1,4 @@
 services:
-  postgres:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: inkwell
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 3s
-      timeout: 3s
-      retries: 10
-
   redis:
     image: redis:7-alpine
     ports:
@@ -30,16 +14,13 @@ services:
     profiles: ["app"]
     build:
       context: ./sync-service
+    env_file: .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/inkwell
       REDIS_URL: redis://redis:6379
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
       SYNC_PORT: "1234"
     ports:
       - "1234:1234"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -48,16 +29,13 @@ services:
     profiles: ["app"]
     build:
       context: ./sync-service
+    env_file: .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/inkwell
       REDIS_URL: redis://redis:6379
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
       SYNC_PORT: "1234"
     ports:
       - "1235:1234"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -69,18 +47,12 @@ services:
       args:
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
         NEXT_PUBLIC_SYNC_WS_URL: ws://localhost:1234
+    env_file: .env
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/inkwell
       REDIS_URL: redis://redis:6379
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
       NEXT_PUBLIC_APP_URL: http://localhost:3000
     ports:
       - "3000:3000"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
-
-volumes:
-  pgdata:

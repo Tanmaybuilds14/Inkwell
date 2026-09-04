@@ -164,7 +164,7 @@ export class Room {
         [meta.identity.userId],
         null
       );
-      if (removed.length > 0) {
+      if (removed?.length > 0) {
         const msg = wrapMessage(
           MESSAGE_AWARENESS,
           awarenessProtocol.encodeAwarenessUpdate(this.awareness, removed)

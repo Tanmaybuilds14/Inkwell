@@ -17,10 +17,6 @@ import { cn } from "@/lib/utils";
 
 const SYNC_WS_URL = process.env.NEXT_PUBLIC_SYNC_WS_URL ?? "ws://localhost:1234";
 
-// After this many consecutive disconnected→connecting→disconnected cycles
-// without a successful 'connected' in between, treat the token as stale.
-const STALE_TOKEN_THRESHOLD = 2;
-
 const PRESENCE_COLORS = [
   "#0ea5e9", "#8b5cf6", "#ec4899", "#f59e0b",
   "#10b981", "#ef4444", "#6366f1", "#14b8a6",
@@ -50,10 +46,9 @@ export function EditorClient({ documentId }) {
 
   const ydoc = useMemo(() => new Y.Doc(), []);
   const providerRef = useRef(null);
-  // Track consecutive auth failures to decide when to refresh the token.
-  const consecutiveFailures = useRef(0);
   // Guard against mounting cleanup racing with a reconnect attempt.
   const disposedRef = useRef(false);
+  const connectRef = useRef(null);
 
   const qs = useMemo(
     () => (shareToken ? `?share=${encodeURIComponent(shareToken)}` : ""),
@@ -107,32 +102,25 @@ export function EditorClient({ documentId }) {
               ? "disconnected"
               : "connecting"
         );
-
-        // Reset the failure counter on a successful connection.
-        if (status === "connected") {
-          consecutiveFailures.current = 0;
-        }
       });
 
-      // Detect auth-related reconnection failures. y-websocket reconnects
-      // automatically using the same URL (stale token). When we see
-      // repeated disconnects without a successful connect in between,
-      // destroy the provider, fetch a fresh token, and reconnect.
+      // On every disconnect, fetch a fresh Clerk token and reconnect.
+      // Clerk JWTs are short-lived (~60s) and may expire before the server
+      // validates them, so we always re-fetch rather than reusing the old URL.
       const onStatus = ({ status }) => {
-        if (status === "disconnected") {
-          consecutiveFailures.current += 1;
-          if (consecutiveFailures.current >= STALE_TOKEN_THRESHOLD && !disposedRef.current) {
-            consecutiveFailures.current = 0;
-            // Fetch a fresh token and reconnect. If getToken fails (e.g.
-            // guest flow), reconnect with share token only.
-            getToken()
-              .then((freshToken) => {
-                if (!disposedRef.current) connect(freshToken);
-              })
-              .catch(() => {
-                if (!disposedRef.current) connect(null);
-              });
-          }
+        if (status === "disconnected" && !disposedRef.current) {
+          // Destroy the current provider to stop y-websocket's own reconnect
+          // loop (it would reuse the stale URL indefinitely).
+          providerRef.current?.destroy();
+          providerRef.current = null;
+
+          getToken()
+            .then((freshToken) => {
+              if (!disposedRef.current) connectRef.current?.(freshToken);
+            })
+            .catch(() => {
+              if (!disposedRef.current) connectRef.current?.(null);
+            });
         }
       };
       provider.on("status", onStatus);
@@ -156,13 +144,13 @@ export function EditorClient({ documentId }) {
     },
     [doc?.id, shareToken, ydoc, user, isSignedIn, getToken]
   );
+  connectRef.current = connect;
 
   const docId = doc?.id ?? null;
   useEffect(() => {
     if (!docId) return undefined;
 
     disposedRef.current = false;
-    consecutiveFailures.current = 0;
     let cleanupStatus;
 
     (async () => {
