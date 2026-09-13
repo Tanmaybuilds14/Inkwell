@@ -11,23 +11,22 @@ import {
   createVersionSnapshot,
 } from './db.js';
 import { subscribeToDocument, publishMessage, MESSAGE_KINDS } from './broadcast.js';
-// Cross-reference: src/lib/redis.js defines the same MESSAGE_KINDS values.
-// The Next.js restore route publishes with these kinds via publishToDocument().
 
 const MESSAGE_SYNC = 0;
 const MESSAGE_AWARENESS = 1;
 
-const SYNC_STEP1_REQUEST = 0;
+// y-protocols/sync sub-types: messageYjsSyncStep1=0 (state-vector request),
+// messageYjsSyncStep2=1 (full initial state) and messageYjsUpdate=2 (incremental
+// delta — the message every live edit travels on). BOTH 1 and 2 mutate the doc,
+// so both are edit-gated in handleMessage.
 const SYNC_STEP2_UPDATE = 1;
+const SYNC_UPDATE = 2;
 
 const PERSIST_INTERVAL_MS = 5_000;
 const VERSION_INTERVAL_MS = 5 * 60_000;
 const EMPTY_ROOM_TTL_MS = 60_000;
 
 // ---- Redis leader lock for cross-instance persistence ----
-// Only the instance holding the lock for a docId persists snapshots to DB.
-// Uses SET NX PX (plain Redis, not Redlock — fine for a single Redis instance).
-// If Redis is ever run in a clustered/HA config, revisit with Redlock.
 const LOCK_TTL_MS = 15_000;
 const LOCK_KEY_PREFIX = 'inkwell:lock:doc:';
 const INSTANCE_ID = `inst-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
@@ -42,41 +41,46 @@ function getLockRedis() {
   return lockRedis;
 }
 
-/** Try to acquire or renew the persistence lock for a document. */
 export async function acquireLock(docId) {
   try {
     const key = LOCK_KEY_PREFIX + docId;
     const redis = getLockRedis();
-    // SET key value NX PX ttl — only sets if key doesn't exist.
     const result = await redis.set(key, INSTANCE_ID, 'PX', LOCK_TTL_MS, 'NX');
     if (result === 'OK') return true;
-    // Key exists — check if we own it (renewal).
     const owner = await redis.get(key);
     return owner === INSTANCE_ID;
   } catch {
-    // Redis unavailable — don't persist to avoid dual-write risk.
     return false;
   }
 }
 
-/** Release the persistence lock (only if we own it). */
 export async function releaseLock(docId) {
   try {
     const key = LOCK_KEY_PREFIX + docId;
     const redis = getLockRedis();
-    // Atomic check-and-delete: only delete if we still own it.
     const script = `if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end`;
     await redis.eval(script, 1, key, INSTANCE_ID);
   } catch {
-    // Best-effort — lock will expire via TTL anyway.
+    /* best-effort */
   }
 }
 
-/** Builds a wire message: [type][payload] */
-function wrapMessage(type, payloadBytes) {
+/**
+ * Encode a y-protocols sync message inside the y-websocket outer framing.
+ * Wire format: [varUint: MESSAGE_SYNC(0)] [inner sync bytes...]
+ */
+function encodeSyncMessage(writeFn, ...args) {
   const encoder = encoding.createEncoder();
-  encoding.writeVarUint(encoder, type);
-  if (payloadBytes) encoding.writeVarUint8Array(encoder, payloadBytes);
+  encoding.writeVarUint(encoder, MESSAGE_SYNC);
+  writeFn(encoder, ...args);
+  return encoding.toUint8Array(encoder);
+}
+
+/** Awareness wire format: [varUint: MESSAGE_AWARENESS(1)] [payload] */
+function wrapAwareness(payloadBytes) {
+  const encoder = encoding.createEncoder();
+  encoding.writeVarUint(encoder, MESSAGE_AWARENESS);
+  encoding.writeVarUint8Array(encoder, payloadBytes);
   return encoding.toUint8Array(encoder);
 }
 
@@ -97,21 +101,38 @@ export class Room {
     this.lastVersionAt = Date.now();
     this.lastActivityAt = Date.now();
 
-    // Relay remote edits/awareness into this local replica.
-    // Cross-reference: src/lib/redis.js — the restore route publishes with
-    // kind: MESSAGE_KINDS.APPLY_SNAPSHOT (previously used 'type' field, causing
-    // a silent no-op until the field was aligned to 'kind').
+    // ----- Doc update handler -----
+    // When a local edit or client-sourced applyUpdate fires, broadcast the
+    // update to every other client on this instance and relay it via Redis
+    // so other instances see it too.  Updates that originated from Redis
+    // are skipped to avoid pub/sub loops.
+    this._onDocUpdate = (update, origin) => {
+      if (origin === 'redis') return;
+      // Broadcast to same-instance peers
+      this.broadcastBuffer(encodeSyncMessage(syncProtocol.writeUpdate, update));
+      // Relay to other instances via Redis
+      this.dirty = true;
+      publishMessage(this.docId, 'update', {
+        update: Buffer.from(update).toString('base64'),
+      });
+    };
+    // Register AFTER the snapshot load above so the initial apply doesn't
+    // trigger a pointless Redis publish.
+    this.doc.on('update', this._onDocUpdate);
+
+    // ----- Redis cross-instance relay -----
     this.unsubscribe = subscribeToDocument(docId, (msg) => {
       try {
         if (msg.kind === MESSAGE_KINDS.UPDATE) {
           const update = new Uint8Array(Buffer.from(msg.update, 'base64'));
+          // Apply with origin 'redis' so _onDocUpdate skips the loop.
           Y.applyUpdate(this.doc, update, 'redis');
-          this.broadcastBuffer(wrapMessage(MESSAGE_SYNC, update));
-          this.dirty = true;
+          // Manually broadcast to same-instance clients (the handler skips redis).
+          this.broadcastBuffer(encodeSyncMessage(syncProtocol.writeUpdate, update));
         } else if (msg.kind === MESSAGE_KINDS.AWARENESS) {
           const aw = new Uint8Array(Buffer.from(msg.awareness, 'base64'));
           awarenessProtocol.applyAwarenessUpdate(this.awareness, aw, 'redis');
-          this.broadcastBuffer(wrapMessage(MESSAGE_AWARENESS, aw));
+          this.broadcastBuffer(wrapAwareness(aw));
         } else if (msg.kind === MESSAGE_KINDS.APPLY_SNAPSHOT) {
           this.applySnapshotHotSwap(Buffer.from(msg.update, 'base64'));
         }
@@ -131,19 +152,14 @@ export class Room {
     this.conns.set(ws, meta);
     this.touch();
 
-    // Ask the client for anything we're missing (standard y-sync handshake).
-    const encoder = encoding.createEncoder();
-    syncProtocol.writeSyncStep1(encoder, this.doc);
-    ws.send(encoding.toUint8Array(encoder), { binary: true });
+    // y-websocket wire format: [outerType=0, innerSyncType=0, stateVector]
+    ws.send(encodeSyncMessage(syncProtocol.writeSyncStep1, this.doc), { binary: true });
 
     // Share existing presence states with the newcomer.
     const states = [...this.awareness.getStates().keys()];
     if (states.length > 0) {
       ws.send(
-        wrapMessage(
-          MESSAGE_AWARENESS,
-          awarenessProtocol.encodeAwarenessUpdate(this.awareness, states)
-        ),
+        wrapAwareness(awarenessProtocol.encodeAwarenessUpdate(this.awareness, states)),
         { binary: true }
       );
     }
@@ -165,20 +181,40 @@ export class Room {
         null
       );
       if (removed?.length > 0) {
-        const msg = wrapMessage(
-          MESSAGE_AWARENESS,
-          awarenessProtocol.encodeAwarenessUpdate(this.awareness, removed)
+        this.broadcastBuffer(
+          wrapAwareness(awarenessProtocol.encodeAwarenessUpdate(this.awareness, removed))
         );
-        this.broadcastBuffer(msg);
       }
     }
   }
 
+  /**
+   * All incoming WebSocket messages arrive in the y-websocket outer format:
+   *   [varUint: outerType, ...]
+   *
+   * outerType 0 = messageSync  → inner payload is a y-protocols sync message
+   * outerType 1 = messageAwareness
+   *
+   * For sync messages the inner format is:
+   *   [varUint: syncSubType, ...]
+   *   syncSubType 0 = syncStep1  (state vector request)
+   *   syncSubType 1 = syncStep2  (state update)
+   *   syncSubType 2 = update     (incremental delta)
+   *
+   * readSyncMessage expects the decoder to be positioned at the inner
+   * syncSubType — so we must consume the outer type first.
+   */
   handleMessage(ws, data) {
     this.touch();
     let buf;
     try {
-      buf = new Uint8Array(data instanceof ArrayBuffer ? data : data.buffer ?? data);
+      // Node.js ws delivers Buffer instances which may be slices of a larger
+      // pool ArrayBuffer. Using data.buffer directly creates a view over the
+      // entire pool (including bytes before/after the actual message), causing
+      // the decoder to read garbage and throw "Unexpected end of array".
+      // Constructing a new Uint8Array from the TypedArray copies only the
+      // actual message bytes.
+      buf = new Uint8Array(data instanceof ArrayBuffer ? data : data);
     } catch {
       return this.reject(ws, 'Malformed message');
     }
@@ -186,39 +222,13 @@ export class Room {
 
     try {
       const probe = decoding.createDecoder(buf);
-      const messageType = decoding.readVarUint(probe);
+      const outerType = decoding.readVarUint(probe);
 
-      if (messageType === MESSAGE_SYNC) {
-        const syncType = decoding.readVarUint(probe);
-        if (syncType === SYNC_STEP2_UPDATE && !canEditRole(this.conns.get(ws)?.role)) {
-          return this.reject(ws, 'Viewers cannot edit');
-        }
-        if (syncType === SYNC_STEP2_UPDATE) {
-          // Extract the actual CRDT delta so we can relay just that.
-          const updateBytes = decoding.readVarUint8Array(probe);
-
-          const decoder = decoding.createDecoder(buf);
-          decoding.readVarUint(decoder); // outer type
-          decoding.readVarUint(decoder); // sync subtype
-          decoding.readVarUint8Array(decoder); // consume
-          const replyEncoder = encoding.createEncoder();
-          syncProtocol.readSyncMessage(decoder, replyEncoder, this.doc, ws);
-          if (encoding.length(replyEncoder) > 1) {
-            this.send(ws, encoding.toUint8Array(replyEncoder));
-          }
-
-          this.dirty = true;
-          publishMessage(this.docId, 'update', {
-            update: Buffer.from(updateBytes).toString('base64'),
-          });
-          return;
-        }
-        // sync step1 / done: fall through to generic handling below.
-      } else if (messageType === MESSAGE_AWARENESS) {
-        const decoder = decoding.createDecoder(buf);
-        decoding.readVarUint(decoder);
-        const aw = decoding.readVarUint8Array(decoder);
+      // ---- Awareness ----
+      if (outerType === MESSAGE_AWARENESS) {
+        const aw = decoding.readVarUint8Array(probe);
         awarenessProtocol.applyAwarenessUpdate(this.awareness, aw, ws);
+        // Forward the raw framed message to other clients (already has outer type).
         this.broadcastBuffer(buf, ws);
         publishMessage(this.docId, 'awareness', {
           awareness: Buffer.from(aw).toString('base64'),
@@ -226,15 +236,30 @@ export class Room {
         return;
       }
 
-      // Generic path (e.g. sync step-1 requests).
-      const decoder = decoding.createDecoder(buf);
-      const type = decoding.readVarUint(decoder);
-      if (type === MESSAGE_SYNC) {
+      // ---- Sync ----
+      if (outerType === MESSAGE_SYNC) {
+        const syncType = decoding.readVarUint(probe);
+        // Only EDITOR / OWNER may send syncStep2 / update messages — both
+        // mutate document state (subtype 2 is what incremental edits travel on).
+        if ((syncType === SYNC_STEP2_UPDATE || syncType === SYNC_UPDATE) && !canEditRole(this.conns.get(ws)?.role)) {
+          return this.reject(ws, 'Viewers cannot edit');
+        }
+
+        // Create a fresh decoder positioned at the start of buf.
+        // Consume the outer messageSync type, then let readSyncMessage
+        // handle the inner sync sub-type + payload.
+        const decoder = decoding.createDecoder(buf);
+        decoding.readVarUint(decoder); // consume outer type (0)
+
         const replyEncoder = encoding.createEncoder();
+        encoding.writeVarUint(replyEncoder, MESSAGE_SYNC); // outer wrapper for reply
         syncProtocol.readSyncMessage(decoder, replyEncoder, this.doc, ws);
         if (encoding.length(replyEncoder) > 1) {
           this.send(ws, encoding.toUint8Array(replyEncoder));
         }
+        // No manual publish needed here — the doc 'update' event handler
+        // (_onDocUpdate) takes care of broadcasting + Redis relay.
+        return;
       }
     } catch (err) {
       console.error(`[room ${this.docId}] message error:`, err.message);
@@ -261,23 +286,22 @@ export class Room {
 
   /* ---------------- version restore hot-swap ---------------- */
 
-  /**
-   * Replaces live CRDT state with a stored snapshot and re-syncs connected
-   * clients without dropping sockets. Triggered over Redis by the restore API.
-   */
   applySnapshotHotSwap(snapshotBytes) {
     const oldDoc = this.doc;
     const newDoc = new Y.Doc({ guid: this.docId });
     Y.applyUpdate(newDoc, new Uint8Array(snapshotBytes));
+    // Re-register the update handler on the new doc instance.
+    newDoc.on('update', this._onDocUpdate);
     this.doc = newDoc;
     this.dirty = true;
+    // Detach handler from old doc before destroying.
+    oldDoc.off('update', this._onDocUpdate);
     oldDoc.destroy();
 
-    const full = wrapMessage(
-      MESSAGE_SYNC,
-      new Uint8Array(Y.encodeStateAsUpdate(newDoc))
+    // Push the full state to every connected client with proper framing.
+    this.broadcastBuffer(
+      encodeSyncMessage(syncProtocol.writeUpdate, Y.encodeStateAsUpdate(newDoc))
     );
-    this.broadcastBuffer(full);
   }
 
   /* ---------------- persistence ---------------- */
@@ -286,9 +310,6 @@ export class Room {
     if (!this.dirty || this.conns.size === 0) return;
     this.dirty = false;
 
-    // Only the instance holding the Redis persistence lock writes to DB.
-    // Other instances keep relaying live updates via pub/sub (unaffected)
-    // but skip the DB write to prevent duplicate/stale snapshots.
     if (!(await acquireLock(this.docId))) return;
 
     const snapshot = Buffer.from(Y.encodeStateAsUpdate(this.doc));
@@ -309,7 +330,6 @@ export class Room {
         });
       }
     } catch (err) {
-      // Fail loudly: edits remain in memory + live relay, durable copy stale.
       this.dirty = true;
       console.error(`[room ${this.docId}] snapshot save failed:`, err.message);
     }
@@ -323,6 +343,7 @@ export class Room {
     try {
       this.unsubscribe?.();
       this.awareness.destroy();
+      this.doc.off('update', this._onDocUpdate);
       this.doc.destroy();
       releaseLock(this.docId).catch(() => {});
     } catch {
@@ -345,8 +366,6 @@ export async function getOrCreateRoom(docId) {
 
   const snapshot = await getDocumentSnapshot(docId);
   if (!snapshot) {
-    // Distinguish "no such document" from "never edited yet" (NULL snapshot
-    // is valid for a brand-new doc; a missing row is not).
     const exists = await getDocumentTitle(docId);
     if (exists === null) {
       const err = new Error('Document not found');
