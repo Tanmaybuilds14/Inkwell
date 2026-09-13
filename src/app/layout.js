@@ -2,6 +2,7 @@ import { Outfit, JetBrains_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -41,7 +42,7 @@ export default function RootLayout({ children }) {
         <body className="min-h-full flex flex-col bg-background text-foreground">
           <ThemeProvider defaultTheme="system">
             <TooltipProvider delayDuration={300}>
-              {children}
+              <ToastProvider>{children}</ToastProvider>
             </TooltipProvider>
           </ThemeProvider>
         </body>

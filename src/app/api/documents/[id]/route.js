@@ -45,9 +45,11 @@ export async function PATCH(request, { params }) {
       data.title = body.title.trim().slice(0, 300);
     }
     if ('folderId' in body) {
-      // Only the owner may move documents between folders.
+      // Only the owner may move documents between folders. Guests (share-link
+      // viewers) have `user === null` here — comparing against user.id would
+      // throw a TypeError and surface as a 500.
       const doc = await prisma.document.findUnique({ where: { id }, select: { ownerId: true } });
-      if (doc.ownerId !== user.id) {
+      if (!user || doc.ownerId !== user.id) {
         return apiError(403, 'Only the owner can move this document');
       }
       if (body.folderId === null) {

@@ -47,12 +47,13 @@ export const sendInviteEmail = inngest.createFunction(
       return { delivered: true, id: result.data?.id };
     });
 
-    // Keep a durable record that the invite went out.
+    // Keep a durable record of who sent the invite (invitedEmail is already
+    // set by the share route; stamp invitedBy on any row missing it).
     if (inviteType === 'email') {
       await step.run('mark-invited', async () => {
         await prisma.permission.updateMany({
-          where: { documentId, invitedEmail: inviteeEmail },
-          data: { invitedEmail: inviteeEmail },
+          where: { documentId, invitedEmail: inviteeEmail, invitedBy: null },
+          data: { invitedBy: event.data.inviterId },
         });
       });
     }

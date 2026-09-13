@@ -148,6 +148,11 @@ export function ShareDialog({ documentId, open, onOpenChange }) {
                     {(c.name ?? "?").slice(0, 2).toUpperCase()}
                   </span>
                   <span className="flex-1 truncate">{c.name}</span>
+                  {c.pending ? (
+                    <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                      pending
+                    </Badge>
+                  ) : null}
                   {c.role === "OWNER" ? (
                     <Badge variant="secondary">owner</Badge>
                   ) : (

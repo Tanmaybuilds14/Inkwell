@@ -114,6 +114,7 @@ export async function POST(request, { params }) {
       documentTitle: doc.title,
       inviteeEmail: email,
       inviterName: user.name ?? user.email,
+      inviterId: user.id,
       role: permission.role,
       inviteType: 'email',
     });

@@ -13,6 +13,7 @@ import { ShareDialog } from "@/components/documents/share-dialog";
 import { VersionHistory } from "@/components/documents/version-history";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 const SYNC_WS_URL = process.env.NEXT_PUBLIC_SYNC_WS_URL ?? "ws://localhost:1234";
@@ -34,9 +35,12 @@ export function EditorClient({ documentId }) {
   const shareToken = searchParams.get("share");
   const { getToken, isSignedIn } = useAuth();
   const { user } = useUser();
+  const { toast } = useToast();
 
   const [doc, setDoc] = useState(null);
   const [error, setError] = useState(null);
+  const [terminalError, setTerminalError] = useState(null);
+  const [provider, setProvider] = useState(null);
   const [showShare, setShowShare] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
   const [connState, setConnState] = useState("connecting");
@@ -49,6 +53,10 @@ export function EditorClient({ documentId }) {
   // Guard against mounting cleanup racing with a reconnect attempt.
   const disposedRef = useRef(false);
   const connectRef = useRef(null);
+  // Single-flight reconnect: reconnectingRef blocks parallel attempts, and
+  // reconnectGenRef lets a terminal close cancel one that is in flight.
+  const reconnectingRef = useRef(false);
+  const reconnectGenRef = useRef(0);
 
   const qs = useMemo(
     () => (shareToken ? `?share=${encodeURIComponent(shareToken)}` : ""),
@@ -68,6 +76,43 @@ export function EditorClient({ documentId }) {
   }, [documentId, qs]);
 
   /**
+   * The single reconnect path. mode 'refresh' re-fetches the Clerk token
+   * first (Clerk JWTs are short-lived (~60s), so always re-fetch rather than
+   * reuse the old URL). A generation counter lets a terminal close (44xx)
+   * cancel a reconnect that a transient 'disconnected' status already started.
+   */
+  const scheduleReconnect = useCallback(
+    (mode) => {
+      if (disposedRef.current || reconnectingRef.current) return;
+      reconnectingRef.current = true;
+      const gen = reconnectGenRef.current;
+      // Destroy the current provider to stop y-websocket's own reconnect
+      // loop (it would reuse the stale URL indefinitely).
+      providerRef.current?.destroy();
+      providerRef.current = null;
+      setProvider(null);
+      const finish = (token) => {
+        reconnectingRef.current = false;
+        if (disposedRef.current || reconnectGenRef.current !== gen) return;
+        connectRef.current?.(token);
+      };
+      if (mode === "refresh") {
+        getToken()
+          .then(finish)
+          .catch(() => finish(null));
+      } else {
+        finish(null);
+      }
+    },
+    [getToken]
+  );
+
+  const cancelPendingReconnect = useCallback(() => {
+    reconnectGenRef.current += 1;
+    reconnectingRef.current = false;
+  }, []);
+
+  /**
    * Create (or recreate) a WebsocketProvider for the given token.
    * The same `ydoc` instance is reused — Yjs handles reconciliation via
    * its normal sync-step handshake automatically.
@@ -77,24 +122,27 @@ export function EditorClient({ documentId }) {
       // Tear down any existing provider first.
       providerRef.current?.destroy();
       providerRef.current = null;
+      setProvider(null);
+      setTerminalError(null);
 
       let room = `ws?docId=${encodeURIComponent(doc?.id)}`;
       if (token) room += `&token=${encodeURIComponent(token)}`;
       else if (shareToken) room += `&share=${encodeURIComponent(shareToken)}`;
 
-      const provider = new WebsocketProvider(SYNC_WS_URL, room, ydoc, {
+      const wsProvider = new WebsocketProvider(SYNC_WS_URL, room, ydoc, {
         disableBc: true,
       });
-      providerRef.current = provider;
+      providerRef.current = wsProvider;
+      setProvider(wsProvider);
 
       const displayName =
         user?.fullName ?? user?.username ?? (isSignedIn ? "You" : "Guest");
-      provider.awareness.setLocalStateField("user", {
+      wsProvider.awareness.setLocalStateField("user", {
         name: displayName,
         color: colorFor(user?.id ?? doc?.id),
       });
 
-      provider.on("status", ({ status }) => {
+      wsProvider.on("status", ({ status }) => {
         setConnState(
           status === "connected"
             ? "connected"
@@ -104,47 +152,73 @@ export function EditorClient({ documentId }) {
         );
       });
 
-      // On every disconnect, fetch a fresh Clerk token and reconnect.
-      // Clerk JWTs are short-lived (~60s) and may expire before the server
-      // validates them, so we always re-fetch rather than reusing the old URL.
+      // Transient drops (network blips, server restart): refresh the token
+      // and reconnect. Permanent rejections are handled by 'closed' below.
       const onStatus = ({ status }) => {
         if (status === "disconnected" && !disposedRef.current) {
-          // Destroy the current provider to stop y-websocket's own reconnect
-          // loop (it would reuse the stale URL indefinitely).
-          providerRef.current?.destroy();
-          providerRef.current = null;
-
-          getToken()
-            .then((freshToken) => {
-              if (!disposedRef.current) connectRef.current?.(freshToken);
-            })
-            .catch(() => {
-              if (!disposedRef.current) connectRef.current?.(null);
-            });
+          scheduleReconnect("refresh");
         }
       };
-      provider.on("status", onStatus);
+      wsProvider.on("status", onStatus);
+
+      // Close codes 4400-4499 are the sync service's terminal verdict: it
+      // completes the upgrade handshake and immediately closes with one of
+      //   4400 — token expired  → refresh the token and reconnect
+      //   4401 — invalid token  → stop
+      //   4403 — no access      → stop
+      //   4404 — doc not found  → stop
+      // (y-websocket's own loop already treats 4400-4499 as non-reconnectable.)
+      const onClosed = ({ code }) => {
+        if (disposedRef.current) return;
+        if (code === 4400) {
+          scheduleReconnect("refresh");
+          return;
+        }
+        // Cancel any reconnect the 'disconnected' status started, then stop.
+        cancelPendingReconnect();
+        wsProvider.destroy();
+        if (providerRef.current === wsProvider) providerRef.current = null;
+        setProvider(null);
+        setConnState("disconnected");
+        setTerminalError(
+          code === 4403
+            ? "You no longer have access to this document."
+            : code === 4404
+              ? "This document no longer exists."
+              : "Your session could not be authenticated. Refresh the page to sign in again."
+        );
+      };
+      wsProvider.on("closed", onClosed);
 
       const onAwarenessChange = () => {
         const list = [];
-        for (const [clientId, state] of provider.awareness.getStates()) {
-          if (clientId !== provider.awareness.clientID && state.user) {
+        for (const [clientId, state] of wsProvider.awareness.getStates()) {
+          if (clientId !== wsProvider.awareness.clientID && state.user) {
             list.push(state.user);
           }
         }
         setPeers(list);
       };
-      provider.awareness.on("change", onAwarenessChange);
+      wsProvider.awareness.on("change", onAwarenessChange);
       onAwarenessChange();
 
       return () => {
-        provider.off("status", onStatus);
-        provider.awareness.off("change", onAwarenessChange);
+        wsProvider.off("status", onStatus);
+        wsProvider.off("closed", onClosed);
+        wsProvider.awareness.off("change", onAwarenessChange);
       };
     },
-    [doc?.id, shareToken, ydoc, user, isSignedIn, getToken]
+    [doc?.id, shareToken, ydoc, user, isSignedIn, scheduleReconnect, cancelPendingReconnect]
   );
-  connectRef.current = connect;
+
+  // Keep the latest connect() reachable from reconnect handlers without
+  // touching refs during render.
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
+
+  // A pending debounced title save must not fire after unmount.
+  useEffect(() => () => clearTimeout(titleTimer.current), []);
 
   const docId = doc?.id ?? null;
   useEffect(() => {
@@ -170,6 +244,7 @@ export function EditorClient({ documentId }) {
       cleanupStatus?.();
       providerRef.current?.destroy();
       providerRef.current = null;
+      setProvider(null);
     };
   }, [docId, getToken, connect]);
 
@@ -208,6 +283,23 @@ export function EditorClient({ documentId }) {
           <div>
             <p className="text-lg font-medium">Can&apos;t open this document</p>
             <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (terminalError) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <AppHeader backHref="/documents" />
+        <main className="flex flex-1 items-center justify-center text-center">
+          <div>
+            <p className="text-lg font-medium">Session ended</p>
+            <p className="mt-2 text-sm text-muted-foreground">{terminalError}</p>
+            <Button className="mt-4" onClick={() => window.location.reload()}>
+              Reload
+            </Button>
           </div>
         </main>
       </div>
@@ -278,7 +370,7 @@ export function EditorClient({ documentId }) {
           <CollabEditor
             documentId={doc.id}
             ydoc={ydoc}
-            getProvider={() => providerRef.current}
+            provider={provider}
             role={role}
           />
         </main>
@@ -291,11 +383,7 @@ export function EditorClient({ documentId }) {
             onRestored={() => {
               // The hot-swap via Redis updates all connected clients without
               // a reload. Show a brief confirmation to the actor.
-              const toast = document.createElement('div');
-              toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-lg border border-border bg-card px-4 py-2 text-sm shadow-md';
-              toast.textContent = 'Version restored';
-              document.body.appendChild(toast);
-              setTimeout(() => toast.remove(), 3000);
+              toast({ title: "Version restored", variant: "success" });
             }}
           />
         ) : null}

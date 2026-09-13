@@ -8,9 +8,10 @@
  *
  * The fix gates BOTH subtypes 1 and 2 behind canEditRole (EDITOR/OWNER).
  *
- * Real lib0 encoding/decoding is used so the test builds genuinely
- * well-formed y-websocket frames; only the network-facing modules
- * (ioredis, Redis broadcast, Postgres) and the y-protocols handlers are mocked.
+ * Uses the REAL y-protocol handlers and real Yjs: the assertions check the
+ * actual document state after each message, so the test cannot pass while
+ * the gating is bypassed. Only the network-facing modules (Redis, Postgres)
+ * are mocked.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as Y from 'yjs';
@@ -18,7 +19,6 @@ import * as encoding from 'lib0/encoding';
 
 describe('sync-service edit permission gating', () => {
   let mockSet, mockGet, mockEval;
-  let readSyncMessage, writeUpdate, writeSyncStep1;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -49,35 +49,6 @@ describe('sync-service edit permission gating', () => {
       persistSnapshot: vi.fn(),
       createVersionSnapshot: vi.fn(),
     }));
-
-    readSyncMessage = vi.fn();
-    writeUpdate = vi.fn();
-    writeSyncStep1 = vi.fn();
-    vi.doMock('y-protocols/sync', () => ({
-      readSyncMessage,
-      writeUpdate,
-      writeSyncStep1,
-    }));
-
-    class MockAwareness {
-      constructor() {
-        this.clientID = 1;
-        this._states = new Map();
-      }
-      getStates() {
-        return this._states;
-      }
-      setLocalState() {}
-      on() {}
-      off() {}
-      destroy() {}
-    }
-    vi.doMock('y-protocols/awareness', () => ({
-      Awareness: MockAwareness,
-      applyAwarenessUpdate: vi.fn(),
-      encodeAwarenessUpdate: vi.fn(() => new Uint8Array([0])),
-      removeAwarenessStates: vi.fn(() => []),
-    }));
   });
 
   /** Builds a well-formed [outer=sync][inner=subType][payload] frame. */
@@ -101,16 +72,24 @@ describe('sync-service edit permission gating', () => {
     };
   }
 
+  /** Creates a room seeded with the text "hello". */
   async function makeRoom() {
-    // Seed a small real snapshot so the room has content to protect.
     const srcDoc = new Y.Doc();
     srcDoc.getText('default').insert(0, 'hello');
     const snapshot = Y.encodeStateAsUpdate(srcDoc);
     srcDoc.destroy();
 
     const { Room } = await import('../sync-service/src/rooms.js');
-    const room = new Room('doc-1', snapshot);
-    return room;
+    return new Room('doc-1', snapshot);
+  }
+
+  /** Builds an update from a fresh doc whose text diverges from "hello". */
+  function maliciousUpdate(text) {
+    const edit = new Y.Doc();
+    edit.getText('default').insert(0, text);
+    const update = Y.encodeStateAsUpdate(edit);
+    edit.destroy();
+    return update;
   }
 
   it.each(['VIEWER', 'COMMENTER'])('rejects a %s sending an incremental update (subType 2)', async (role) => {
@@ -118,15 +97,9 @@ describe('sync-service edit permission gating', () => {
     const ws = makeWs();
     room.join(ws, { role, identity: {} });
 
-    const edit = new Y.Doc();
-    edit.getText('default').insert(0, 'MALICIOUS EDIT');
-    const update = Y.encodeStateAsUpdate(edit);
-    edit.destroy();
-
-    room.handleMessage(ws, syncFrame(2, update));
+    room.handleMessage(ws, syncFrame(2, maliciousUpdate('MALICIOUS EDIT')));
 
     expect(ws.closed?.code).toBe(4003);
-    expect(readSyncMessage).not.toHaveBeenCalled();
     expect(room.doc.getText('default').toString()).toBe('hello');
     room.destroy();
   });
@@ -136,15 +109,9 @@ describe('sync-service edit permission gating', () => {
     const ws = makeWs();
     room.join(ws, { role: 'VIEWER', identity: {} });
 
-    const edit = new Y.Doc();
-    edit.getText('default').insert(0, 'MALICIOUS EDIT');
-    const update = Y.encodeStateAsUpdate(edit);
-    edit.destroy();
-
-    room.handleMessage(ws, syncFrame(1, update));
+    room.handleMessage(ws, syncFrame(1, maliciousUpdate('MALICIOUS EDIT')));
 
     expect(ws.closed?.code).toBe(4003);
-    expect(readSyncMessage).not.toHaveBeenCalled();
     expect(room.doc.getText('default').toString()).toBe('hello');
     room.destroy();
   });
@@ -154,15 +121,10 @@ describe('sync-service edit permission gating', () => {
     const ws = makeWs();
     room.join(ws, { role: 'EDITOR', identity: {} });
 
-    const edit = new Y.Doc();
-    edit.getText('default').insert(0, 'legit edit');
-    const update = Y.encodeStateAsUpdate(edit);
-    edit.destroy();
-
-    room.handleMessage(ws, syncFrame(2, update));
+    room.handleMessage(ws, syncFrame(2, maliciousUpdate('legit edit')));
 
     expect(ws.closed).toBeNull();
-    expect(readSyncMessage).toHaveBeenCalledTimes(1);
+    expect(room.doc.getText('default').toString()).toContain('legit edit');
     room.destroy();
   });
 
@@ -171,15 +133,10 @@ describe('sync-service edit permission gating', () => {
     const ws = makeWs();
     room.join(ws, { role: 'OWNER', identity: {} });
 
-    const edit = new Y.Doc();
-    edit.getText('default').insert(0, 'owner state');
-    const update = Y.encodeStateAsUpdate(edit);
-    edit.destroy();
-
-    room.handleMessage(ws, syncFrame(1, update));
+    room.handleMessage(ws, syncFrame(1, maliciousUpdate('owner state')));
 
     expect(ws.closed).toBeNull();
-    expect(readSyncMessage).toHaveBeenCalledTimes(1);
+    expect(room.doc.getText('default').toString()).toContain('owner state');
     room.destroy();
   });
 });

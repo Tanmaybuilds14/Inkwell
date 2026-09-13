@@ -308,6 +308,21 @@ export class Room {
 
   async persist() {
     if (!this.dirty || this.conns.size === 0) return;
+    await this._persistLocked();
+  }
+
+  /**
+   * Final flush used by the sweeper right before an idle room is evicted.
+   * Unlike persist(), it intentionally runs when the room is empty — that is
+   * exactly the moment unsaved edits would otherwise be destroyed (everyone
+   * left, `dirty` still true, destroy() drops the in-memory doc).
+   */
+  async finalFlush() {
+    if (!this.dirty) return;
+    await this._persistLocked();
+  }
+
+  async _persistLocked() {
     this.dirty = false;
 
     if (!(await acquireLock(this.docId))) return;
@@ -360,23 +375,48 @@ function canEditRole(role) {
 
 const rooms = new Map();
 
+// In-flight room creations, keyed by docId. Without memoizing, two
+// simultaneous handshakes for the same document both await
+// getDocumentSnapshot() and then both construct a Room; the second
+// rooms.set() overwrites the first, whose Redis subscription and doc are
+// then leaked forever (never destroyed, still applying relayed updates).
+const pendingRooms = new Map();
+
 export async function getOrCreateRoom(docId) {
-  let room = rooms.get(docId);
-  if (room) return room;
+  const existing = rooms.get(docId);
+  if (existing) return existing;
 
-  const snapshot = await getDocumentSnapshot(docId);
-  if (!snapshot) {
-    const exists = await getDocumentTitle(docId);
-    if (exists === null) {
-      const err = new Error('Document not found');
-      err.statusCode = 404;
-      throw err;
-    }
+  let pending = pendingRooms.get(docId);
+  if (!pending) {
+    pending = (async () => {
+      const snapshot = await getDocumentSnapshot(docId);
+      if (!snapshot) {
+        const exists = await getDocumentTitle(docId);
+        if (exists === null) {
+          const err = new Error('Document not found');
+          err.statusCode = 404;
+          throw err;
+        }
+      }
+      return new Room(docId, snapshot);
+    })()
+      .then((room) => {
+        // Another creation may have won the slot in the meantime — keep
+        // exactly one room per document and discard the duplicate.
+        const current = rooms.get(docId);
+        if (current) {
+          room.destroy();
+          return current;
+        }
+        rooms.set(docId, room);
+        return room;
+      })
+      .finally(() => {
+        pendingRooms.delete(docId);
+      });
+    pendingRooms.set(docId, pending);
   }
-
-  room = new Room(docId, snapshot);
-  rooms.set(docId, room);
-  return room;
+  return pending;
 }
 
 export function listRooms() {
@@ -395,7 +435,9 @@ const sweeper = setInterval(() => {
   for (const [docId, room] of rooms) {
     room.persist().catch(() => {});
     if (room.isEmpty && now - room.lastActivityAt > EMPTY_ROOM_TTL_MS) {
-      room.persist().finally(() => {
+      // Final flush BEFORE destroy: persist() skips empty rooms, so without
+      // this the last edits made just before everyone left would be lost.
+      room.finalFlush().finally(() => {
         room.destroy();
         rooms.delete(docId);
       });

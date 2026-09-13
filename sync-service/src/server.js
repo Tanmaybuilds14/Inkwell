@@ -19,6 +19,18 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ noServer: true });
 
 /**
+ * Map internal auth codes to WebSocket close codes in the 4400-4499 range.
+ * y-websocket's client treats 4400-4499 as "reconnecting can't fix this" and
+ * stops its own reconnect loop, which lets the app react deliberately:
+ *   4400 — token expired: client refreshes the token and reconnects
+ *   4401 — invalid token: terminal
+ *   4403 — no access to the document: terminal
+ *   4404 — document not found: terminal
+ */
+const CLOSE_CODES = { 4001: 4401, 4010: 4400, 4003: 4403, 4004: 4404 };
+const closeCodeFor = (code) => CLOSE_CODES[code] ?? 4401;
+
+/**
  * Handshake happens during the HTTP upgrade, before any document bytes flow:
  *   /ws?docId=<id>&token=<clerk-jwt>        (signed-in)
  *   /ws?docId=<id>&share=<share-token>      (guest via share link)
@@ -44,11 +56,16 @@ server.on('upgrade', async (request, socket, head) => {
   }
 
   if (!auth.ok) {
-    // Deny before accepting the socket — fail closed.
-    // Close code 4010 signals "token expired" so the client can refresh
-    // and reconnect without a page reload.
-    socket.write(`HTTP/1.1 403 Forbidden\r\nx-reason: ${auth.reason}\r\n\r\n`);
-    socket.destroy();
+    // Complete the WebSocket handshake and immediately close with an
+    // application close code. A plain HTTP 403 on the raw socket never
+    // reaches the browser's WebSocket API as a close event, so the client
+    // cannot tell "expired token, refresh and retry" from "access denied,
+    // stop trying" — it would reconnect forever.
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      const code = closeCodeFor(auth.code);
+      console.log(`[sync] denied ${docId}: ${auth.reason} (close ${code})`);
+      ws.close(code, auth.reason);
+    });
     return;
   }
 

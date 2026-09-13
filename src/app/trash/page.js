@@ -5,8 +5,10 @@ import { Show } from "@clerk/nextjs";
 import { Trash2, RotateCcw, FileText } from "lucide-react";
 import { AppHeader, api } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 
 export default function TrashPage() {
+  const { toast } = useToast();
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -34,14 +36,47 @@ export default function TrashPage() {
   }, [reloadKey]);
 
   async function restore(doc) {
-    await api(`/api/documents/${doc.id}/restore`, { method: "POST" });
-    load();
+    try {
+      await api(`/api/documents/${doc.id}/restore`, { method: "POST" });
+      toast({
+        title: "Document restored",
+        description: doc.title || "Untitled",
+        variant: "success",
+      });
+      load();
+    } catch (err) {
+      toast({
+        title: `Couldn't restore "${doc.title || "Untitled"}"`,
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   }
 
   async function purge(doc) {
-    if (!confirm(`Permanently delete "${doc.title}"? This cannot be undone.`)) return;
-    await api(`/api/trash?docId=${doc.id}`, { method: "DELETE" });
-    load();
+    if (!confirm(`Permanently delete "${doc.title || "Untitled"}"? This cannot be undone.`)) return;
+    try {
+      await api(`/api/trash?docId=${doc.id}`, { method: "DELETE" });
+      toast({ title: "Deleted forever", description: doc.title || "Untitled" });
+      load();
+    } catch (err) {
+      toast({
+        title: `Couldn't delete "${doc.title || "Untitled"}"`,
+        description: err.message,
+        variant: "destructive",
+      });
+    }
+  }
+
+  async function emptyTrash() {
+    if (!confirm("Permanently delete everything in trash? This cannot be undone.")) return;
+    try {
+      await api("/api/trash", { method: "DELETE" });
+      toast({ title: "Trash emptied" });
+      load();
+    } catch (err) {
+      toast({ title: "Couldn't empty trash", description: err.message, variant: "destructive" });
+    }
   }
 
   return (
@@ -59,11 +94,7 @@ export default function TrashPage() {
                 variant="ghost"
                 size="sm"
                 className="text-destructive"
-                onClick={async () => {
-                  if (!confirm("Permanently delete everything in trash?")) return;
-                  await api("/api/trash", { method: "DELETE" });
-                  load();
-                }}
+                onClick={emptyTrash}
               >
                 Empty trash
               </Button>

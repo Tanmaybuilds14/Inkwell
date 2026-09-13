@@ -12,7 +12,11 @@ describe('Issue 5 — persistence leader lock', () => {
     mockGet = vi.fn().mockResolvedValue(null);
     mockEval = vi.fn().mockResolvedValue(1);
 
-    vi.doMock('ioredis', () => {
+    // Mock the ioredis copy that sync-service/src/rooms.js actually resolves.
+    // The sync-service is a standalone deployable with its own node_modules, so
+    // mocking the bare specifier 'ioredis' only intercepts the ROOT copy —
+    // rooms.js keeps getting the real client and every lock test fails.
+    vi.doMock('../sync-service/node_modules/ioredis', () => {
       function MockRedis() {
         this.set = mockSet;
         this.get = mockGet;

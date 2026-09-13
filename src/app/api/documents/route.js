@@ -45,15 +45,23 @@ export async function GET(request) {
     const scope = url.searchParams.get('scope') ?? 'owned'; // owned | shared
 
     if (q) {
-      // Title search across everything the user can see.
+      // Title search, scoped to the selected tab. Without the scope filter the
+      // 'shared' tab's search silently returns the user's own docs as well.
       const docs = await prisma.document.findMany({
         where: {
           deletedAt: null,
-          OR: [
-            { ownerId: user.id },
-            { permissions: { some: { userId: user.id } } },
-          ],
-          ...(q ? { title: { contains: q, mode: 'insensitive' } } : {}),
+          ...(scope === 'shared'
+            ? {
+                ownerId: { not: user.id },
+                permissions: { some: { userId: user.id } },
+              }
+            : {
+                OR: [
+                  { ownerId: user.id },
+                  { permissions: { some: { userId: user.id } } },
+                ],
+              }),
+          title: { contains: q, mode: 'insensitive' },
         },
         select: DOCUMENT_LIST_SELECT,
         orderBy: { updatedAt: 'desc' },

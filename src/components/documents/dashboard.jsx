@@ -22,10 +22,18 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+
+// Radix Select v2 throws on SelectItem value="", so the root entry uses a
+// sentinel that maps back to null (no folder) before hitting the API.
+const ROOT_FOLDER_VALUE = "__root__";
+const DOCS_SKELETON_WIDTHS = ["w-2/3", "w-2/5", "w-1/2", "w-2/3", "w-2/5", "w-1/2"];
 
 export function Dashboard() {
   const router = useRouter();
+  const { toast } = useToast();
   const [folders, setFolders] = useState(null);
   const [docs, setDocs] = useState(null);
   const [activeFolderId, setActiveFolderId] = useState(null);
@@ -94,40 +102,86 @@ export function Dashboard() {
   async function createFolder() {
     const name = prompt("Folder name:");
     if (!name?.trim()) return;
-    await api("/api/folders", { method: "POST", body: JSON.stringify({ name }) });
-    refreshFolders();
+    try {
+      await api("/api/folders", { method: "POST", body: JSON.stringify({ name }) });
+      refreshFolders();
+    } catch (err) {
+      toast({ title: "Couldn't create folder", description: err.message, variant: "destructive" });
+    }
   }
 
   async function renameFolder(folder) {
     const name = prompt("Rename folder:", folder.name);
     if (!name?.trim()) return;
-    await api(`/api/folders/${folder.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ name }),
-    });
-    refreshFolders();
+    try {
+      await api(`/api/folders/${folder.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name }),
+      });
+      refreshFolders();
+    } catch (err) {
+      toast({ title: "Couldn't rename folder", description: err.message, variant: "destructive" });
+    }
   }
 
   async function deleteFolder(folder) {
     if (!confirm(`Delete "${folder.name}"? Documents inside move to the root.`)) return;
-    await api(`/api/folders/${folder.id}`, { method: "DELETE" });
-    if (activeFolderId === folder.id) setActiveFolderId(null);
-    refreshFolders();
-    refreshDocs();
+    try {
+      await api(`/api/folders/${folder.id}`, { method: "DELETE" });
+      if (activeFolderId === folder.id) setActiveFolderId(null);
+      refreshFolders();
+      refreshDocs();
+    } catch (err) {
+      toast({ title: "Couldn't delete folder", description: err.message, variant: "destructive" });
+    }
   }
 
   async function moveDoc(doc, folderId) {
-    await api(`/api/documents/${doc.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ folderId }),
+    const previousDocs = docs;
+    const folderFiltered = scope === "owned" && !query.trim() && activeFolderId !== null;
+    // Optimistic: show the move instantly. In a folder-filtered view the
+    // document leaves the list as soon as it moves elsewhere; in the
+    // unfiltered list it stays and just re-labels. Reverted on failure.
+    setDocs((list) => {
+      if (!list) return list;
+      const updated = list.map((d) => (d.id === doc.id ? { ...d, folderId } : d));
+      return folderFiltered && folderId !== activeFolderId
+        ? updated.filter((d) => d.id !== doc.id)
+        : updated;
     });
-    refreshDocs();
+    try {
+      await api(`/api/documents/${doc.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ folderId }),
+      });
+      const folderName = folderId
+        ? (folders ?? []).find((f) => f.id === folderId)?.name
+        : null;
+      toast({
+        title: folderName ? `Moved to "${folderName}"` : "Moved to root",
+        description: doc.title || "Untitled",
+        variant: "success",
+      });
+      refreshFolders(); // keep sidebar counts honest, non-blocking
+    } catch (err) {
+      setDocs(previousDocs); // rollback
+      toast({
+        title: `Couldn't move "${doc.title || "Untitled"}"`,
+        description: err.message,
+        variant: "destructive",
+      });
+    }
   }
 
   async function deleteDoc(doc) {
-    if (!confirm(`Move "${doc.title}" to trash?`)) return;
-    await api(`/api/documents/${doc.id}`, { method: "DELETE" });
-    refreshDocs();
+    if (!confirm(`Move "${doc.title || "Untitled"}" to trash?`)) return;
+    try {
+      await api(`/api/documents/${doc.id}`, { method: "DELETE" });
+      toast({ title: "Moved to trash", description: doc.title || "Untitled", variant: "success" });
+      refreshDocs();
+    } catch (err) {
+      toast({ title: "Couldn't move to trash", description: err.message, variant: "destructive" });
+    }
   }
 
   return (
@@ -144,6 +198,13 @@ export function Dashboard() {
             <SidebarLink active={activeFolderId === null} onClick={() => setActiveFolderId(null)}>
               All documents
             </SidebarLink>
+            {folders === null ? (
+              <div className="flex flex-col gap-2 px-2 pt-1">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ) : null}
             {(folders ?? []).map((f) => (
               <SidebarGroup key={f.id}>
                 <SidebarLink
@@ -220,7 +281,16 @@ export function Dashboard() {
             ) : null}
 
             {docs === null ? (
-              <p className="text-sm text-muted-foreground">Loading…</p>
+              <div className="divide-y divide-border" aria-hidden="true">
+                {DOCS_SKELETON_WIDTHS.map((width, i) => (
+                  <div key={i} className="flex items-center gap-3 py-3.5">
+                    <Skeleton className="h-4 w-4" />
+                    <Skeleton className={cn("h-4", width)} />
+                    <Skeleton className="ml-auto h-3 w-32" />
+                    <Skeleton className="h-9 w-[120px] rounded-lg" />
+                  </div>
+                ))}
+              </div>
             ) : docs.length === 0 ? (
               <div className="mt-16 flex flex-col items-center text-center">
                 <FileText className="h-12 w-12 text-muted-foreground/50" />
@@ -243,12 +313,17 @@ export function Dashboard() {
                     <span className="text-xs text-muted-foreground">
                       {new Date(doc.updatedAt).toLocaleString()}
                     </span>
-                    <Select onValueChange={(val) => moveDoc(doc, val || null)}>
+                    <Select
+                      value={doc.folderId ?? ROOT_FOLDER_VALUE}
+                      onValueChange={(val) =>
+                        moveDoc(doc, val === ROOT_FOLDER_VALUE ? null : val)
+                      }
+                    >
                       <SelectTrigger className="w-[120px] text-xs opacity-0 group-hover:opacity-100">
                         <SelectValue placeholder="Move to…" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">(root)</SelectItem>
+                        <SelectItem value={ROOT_FOLDER_VALUE}>(root)</SelectItem>
                         {(folders ?? []).map((f) => (
                           <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
                         ))}
