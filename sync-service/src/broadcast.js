@@ -27,6 +27,7 @@ export const channelFor = (docId) => `inkwell:doc:${docId}`;
 
 let sub = null;
 let pub = null;
+const subscriptions = new Map(); // channel → Set<handler>
 
 function getSub() {
   if (!sub) {
@@ -34,6 +35,19 @@ function getSub() {
       maxRetriesPerRequest: null,
     });
     sub.on('error', (err) => console.error('[redis] subscriber error:', err.message));
+    sub.on('close', () => {
+      sub = null;
+    });
+    sub.on('ready', () => {
+      // Re-subscribe all tracked channels and re-register handlers after
+      // the connection was dropped and a new client was created.
+      for (const [channel, handlers] of subscriptions) {
+        sub.subscribe(channel).catch((err) =>
+          console.error(`[redis] re-subscribe failed for ${channel}:`, err.message)
+        );
+        for (const h of handlers) sub.on('message', h);
+      }
+    });
   }
   return sub;
 }
@@ -44,6 +58,7 @@ function getPub() {
       maxRetriesPerRequest: null,
     });
     pub.on('error', (err) => console.error('[redis] publisher error:', err.message));
+    pub.on('close', () => { pub = null; });
   }
   return pub;
 }
@@ -53,24 +68,29 @@ function getPub() {
  * is invoked for every remote message (own messages are filtered by origin).
  */
 export function subscribeToDocument(docId, onMessage) {
+  const channel = channelFor(docId);
   const s = getSub();
-  s.subscribe(channelFor(docId)).catch((err) =>
-    console.error(`[redis] subscribe failed for ${docId}:`, err.message)
-  );
-  const handler = (channel, raw) => {
-    if (channel !== channelFor(docId)) return;
+  const handler = (ch, raw) => {
+    if (ch !== channel) return;
     try {
       const msg = JSON.parse(raw);
-      if (msg.origin === INSTANCE_ID) return; // ignore our own broadcasts
+      if (msg.origin === INSTANCE_ID) return;
       onMessage(msg);
     } catch {
       // Malformed payload — ignore rather than crash the instance.
     }
   };
+  if (!subscriptions.has(channel)) subscriptions.set(channel, new Set());
+  subscriptions.get(channel).add(handler);
+  s.subscribe(channel).catch((err) =>
+    console.error(`[redis] subscribe failed for ${docId}:`, err.message)
+  );
   s.on('message', handler);
   return () => {
+    subscriptions.get(channel)?.delete(handler);
+    if (subscriptions.get(channel)?.size === 0) subscriptions.delete(channel);
     s.off('message', handler);
-    s.unsubscribe(channelFor(docId)).catch(() => {});
+    s.unsubscribe(channel).catch(() => {});
   };
 }
 

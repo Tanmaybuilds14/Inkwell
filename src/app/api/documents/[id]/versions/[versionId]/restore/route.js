@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { handle, apiError, json, requireDocument } from '@/lib/api-helpers';
 import { publishToDocument, MESSAGE_KINDS } from '@/lib/redis';
 import { track, EVENTS } from '@/lib/telemetry';
+import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
 
 /**
  * POST — restore a prior version as the current document state.
@@ -62,6 +63,7 @@ export async function POST(request, { params }) {
       version_id: versionId,
       actor_id: user.id,
     });
+    logActivity(ACTIVITY_TYPES.VERSION_RESTORED, { userId: user.id, documentId: id, meta: { versionId } });
     return json({ ok: true });
   });
 }

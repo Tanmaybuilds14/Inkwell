@@ -668,10 +668,6 @@ export type NullableBytesFieldUpdateOperationsInput = {
   set?: runtime.Bytes | null
 }
 
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
-}
-
 export type EnumRoleFieldUpdateOperationsInput = {
   set?: $Enums.Role
 }

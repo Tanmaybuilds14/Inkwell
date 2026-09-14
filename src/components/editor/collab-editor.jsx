@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -34,19 +33,9 @@ const ROLE_LABELS = {
   VIEWER: "viewer",
 };
 
-export function CollabEditor({ documentId, ydoc, getProvider, role }) {
-  const [providerReady, setProviderReady] = useState(false);
+export function CollabEditor({ documentId, ydoc, provider, role }) {
+  const providerReady = !!provider;
   const canEdit = role === "OWNER" || role === "EDITOR";
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      if (getProvider()) {
-        setProviderReady(true);
-        clearInterval(t);
-      }
-    }, 50);
-    return () => clearInterval(t);
-  }, [getProvider]);
 
   const editor = useEditor(
     {
@@ -61,8 +50,8 @@ export function CollabEditor({ documentId, ydoc, getProvider, role }) {
           ? [
               Collaboration.configure({ document: ydoc }),
               CollaborationCaret.configure({
-                provider: getProvider(),
-                user: getProvider()?.awareness?.getLocalState()?.user ?? { name: "You", color: "#44403c" },
+                provider,
+                user: provider?.awareness?.getLocalState()?.user ?? { name: "You", color: "#44403c" },
               }),
             ]
           : []),
@@ -74,7 +63,7 @@ export function CollabEditor({ documentId, ydoc, getProvider, role }) {
         },
       },
     },
-    [providerReady]
+    [provider]
   );
 
   if (!editor) {

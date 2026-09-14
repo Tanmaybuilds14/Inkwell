@@ -46,7 +46,7 @@ export async function getUserRoleForDocument(docId, userId) {
 
 export async function getUserByClerkId(clerkId) {
   const { rows } = await pool.query(
-    `SELECT "id", "email", "name" FROM "User" WHERE "clerkId" = $1`,
+    `SELECT "id", "email", "name", "imageUrl" FROM "User" WHERE "clerkId" = $1`,
     [clerkId]
   );
   return rows[0] ?? null;
@@ -77,10 +77,67 @@ export async function getDocumentTitle(docId) {
   return rows[0]?.title ?? null;
 }
 
+export async function getDocumentOwnerId(docId) {
+  const { rows } = await pool.query(
+    `SELECT "ownerId" FROM "Document" WHERE "id" = $1`,
+    [docId]
+  );
+  return rows[0]?.ownerId ?? null;
+}
+
 export async function createVersionSnapshot({ docId, snapshot, title }) {
   await pool.query(
     `INSERT INTO "VersionSnapshot" ("documentId", "snapshot", "title")
      VALUES ($1, $2, $3)`,
     [docId, snapshot, title ?? null]
   );
+}
+
+/**
+ * Write user-facing audit rows. The ActivityEvent table may not exist yet on
+ * databases that predate the profile/audit feature, so the table is created
+ * on demand here (idempotent) and individual failures are non-fatal.
+ */
+let activityTableReady = false;
+async function ensureActivityTable() {
+  if (activityTableReady) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "ActivityEvent" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "type" TEXT NOT NULL,
+      "documentId" TEXT,
+      "docTitle" TEXT,
+      "meta" JSONB,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "ActivityEvent_pkey" PRIMARY KEY ("id")
+    )`);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS "ActivityEvent_userId_createdAt_idx"
+       ON "ActivityEvent"("userId", "createdAt" DESC)`
+  );
+  activityTableReady = true;
+}
+
+export async function logActivityEvents(events) {
+  if (!events.length) return;
+  try {
+    await ensureActivityTable();
+    const values = [];
+    const params = [];
+    events.forEach((e, i) => {
+      const o = i * 6;
+      values.push(`($${o + 1}, $${o + 2}, $${o + 3}, $${o + 4}, $${o + 5}, $${o + 6})`);
+      params.push(e.id, e.userId, e.type, e.documentId ?? null, e.docTitle ?? null, e.meta ?? null);
+    });
+    await pool.query(
+      `INSERT INTO "ActivityEvent"
+         ("id", "userId", "type", "documentId", "docTitle", "meta")
+       VALUES ${values.join(', ')}`,
+      params
+    );
+  } catch (err) {
+    // Audit is best-effort in the sync path — never break persistence.
+    console.error('[activity] sync-service write failed:', err.message);
+  }
 }

@@ -3,12 +3,15 @@ import * as syncProtocol from 'y-protocols/sync';
 import * as awarenessProtocol from 'y-protocols/awareness';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
+import { randomUUID } from 'node:crypto';
 import Redis from 'ioredis';
 import {
   getDocumentSnapshot,
   getDocumentTitle,
+  getDocumentOwnerId,
   persistSnapshot,
   createVersionSnapshot,
+  logActivityEvents,
 } from './db.js';
 import { subscribeToDocument, publishMessage, MESSAGE_KINDS } from './broadcast.js';
 
@@ -37,6 +40,7 @@ function getLockRedis() {
     const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
     lockRedis = new Redis(url, { maxRetriesPerRequest: 1 });
     lockRedis.on('error', (err) => console.error('[redis] lock error:', err.message));
+    lockRedis.on('close', () => { lockRedis = null; });
   }
   return lockRedis;
 }
@@ -335,14 +339,38 @@ export class Room {
         stateVector: Buffer.from(Y.encodeStateVector(this.doc)),
       });
 
-      if (Date.now() - this.lastVersionAt >= VERSION_INTERVAL_MS) {
-        this.lastVersionAt = Date.now();
-        const title = await getDocumentTitle(this.docId);
+      // User-facing audit: one doc_edited row per contributing signed-in
+      // user for this persistence cycle (guests have no local user row).
+      const contributors = [...new Set(
+        [...this.conns.values()].map((c) => c.identity?.userId).filter(Boolean)
+      )];
+      const title = await getDocumentTitle(this.docId);
+      const now = Date.now();
+      if (contributors.length) {
+        await logActivityEvents(
+          contributors.map((userId) => ({
+            id: `act_${randomUUID()}`,
+            userId,
+            type: 'doc_edited',
+            documentId: this.docId,
+            docTitle: title,
+          }))
+        );
+      }
+
+      if (now - this.lastVersionAt >= VERSION_INTERVAL_MS) {
+        this.lastVersionAt = now;
         await createVersionSnapshot({
           docId: this.docId,
           snapshot,
           title,
         });
+        // Attribution for auto-snapshots is room-wide; log it for the owner
+        // so the profile's "versions" tile stays meaningful.
+        const ownerId = await getDocumentOwnerId(this.docId);
+        if (ownerId) {
+          await logActivityEvents([{ id: `act_${randomUUID()}`, userId: ownerId, type: 'version_created', documentId: this.docId, docTitle: title }]);
+        }
       }
     } catch (err) {
       this.dirty = true;

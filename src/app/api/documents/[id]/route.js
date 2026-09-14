@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { handle, apiError, json, requireDocument } from '@/lib/api-helpers';
 import { track, EVENTS } from '@/lib/telemetry';
+import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
 
 const METADATA_SELECT = {
   id: true,
@@ -26,6 +27,11 @@ export async function GET(request, { params }) {
         owner: { select: { name: true, email: true } },
       },
     });
+
+    if (user) {
+      // Audit: user opened the document (best-effort, non-blocking).
+      logActivity(ACTIVITY_TYPES.DOC_OPENED, { userId: user.id, documentId: id, docTitle: full.title });
+    }
 
     return json({
       document: { ...full, role },
@@ -74,7 +80,15 @@ export async function PATCH(request, { params }) {
       select: { id: true, title: true, folderId: true, updatedAt: true },
     });
 
-    if ('title' in data) track(EVENTS.DOC_RENAMED, { document_id: id });
+    if (user) {
+      if ('title' in data) {
+        track(EVENTS.DOC_RENAMED, { document_id: id });
+        logActivity(ACTIVITY_TYPES.DOC_RENAMED, { userId: user.id, documentId: id, docTitle: updated.title });
+      }
+      if ('folderId' in data) {
+        logActivity(ACTIVITY_TYPES.DOC_MOVED, { userId: user.id, documentId: id, docTitle: updated.title });
+      }
+    }
     return json({ document: updated });
   });
 }
@@ -89,6 +103,7 @@ export async function DELETE(request, { params }) {
       data: { deletedAt: new Date() },
     });
     track(EVENTS.DOC_MOVED_TO_TRASH, { document_id: id, actor_id: user.id });
+    logActivity(ACTIVITY_TYPES.DOC_MOVED_TO_TRASH, { userId: user.id, documentId: id });
     return json({ ok: true });
   });
 }

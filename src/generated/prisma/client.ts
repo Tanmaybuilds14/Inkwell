@@ -62,6 +62,11 @@ export type Document = Prisma.DocumentModel
  */
 export type Permission = Prisma.PermissionModel
 /**
+ * Model ActivityEvent
+ * 
+ */
+export type ActivityEvent = Prisma.ActivityEventModel
+/**
  * Model VersionSnapshot
  * 
  */

@@ -31,6 +31,8 @@ export type UserMinAggregateOutputType = {
   name: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  imageUrl: string | null
+  onboardedAt: Date | null
 }
 
 export type UserMaxAggregateOutputType = {
@@ -40,6 +42,8 @@ export type UserMaxAggregateOutputType = {
   name: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  imageUrl: string | null
+  onboardedAt: Date | null
 }
 
 export type UserCountAggregateOutputType = {
@@ -49,6 +53,8 @@ export type UserCountAggregateOutputType = {
   name: number
   createdAt: number
   updatedAt: number
+  imageUrl: number
+  onboardedAt: number
   _all: number
 }
 
@@ -60,6 +66,8 @@ export type UserMinAggregateInputType = {
   name?: true
   createdAt?: true
   updatedAt?: true
+  imageUrl?: true
+  onboardedAt?: true
 }
 
 export type UserMaxAggregateInputType = {
@@ -69,6 +77,8 @@ export type UserMaxAggregateInputType = {
   name?: true
   createdAt?: true
   updatedAt?: true
+  imageUrl?: true
+  onboardedAt?: true
 }
 
 export type UserCountAggregateInputType = {
@@ -78,6 +88,8 @@ export type UserCountAggregateInputType = {
   name?: true
   createdAt?: true
   updatedAt?: true
+  imageUrl?: true
+  onboardedAt?: true
   _all?: true
 }
 
@@ -160,6 +172,8 @@ export type UserGroupByOutputType = {
   name: string | null
   createdAt: Date
   updatedAt: Date
+  imageUrl: string | null
+  onboardedAt: Date | null
   _count: UserCountAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
@@ -190,10 +204,13 @@ export type UserWhereInput = {
   name?: Prisma.StringNullableFilter<"User"> | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
+  imageUrl?: Prisma.StringNullableFilter<"User"> | string | null
+  onboardedAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   ownedDocuments?: Prisma.DocumentListRelationFilter
   folders?: Prisma.FolderListRelationFilter
   permissions?: Prisma.PermissionListRelationFilter
   versions?: Prisma.VersionSnapshotListRelationFilter
+  activity?: Prisma.ActivityEventListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -203,10 +220,13 @@ export type UserOrderByWithRelationInput = {
   name?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  imageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  onboardedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   ownedDocuments?: Prisma.DocumentOrderByRelationAggregateInput
   folders?: Prisma.FolderOrderByRelationAggregateInput
   permissions?: Prisma.PermissionOrderByRelationAggregateInput
   versions?: Prisma.VersionSnapshotOrderByRelationAggregateInput
+  activity?: Prisma.ActivityEventOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -219,10 +239,13 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   name?: Prisma.StringNullableFilter<"User"> | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
+  imageUrl?: Prisma.StringNullableFilter<"User"> | string | null
+  onboardedAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   ownedDocuments?: Prisma.DocumentListRelationFilter
   folders?: Prisma.FolderListRelationFilter
   permissions?: Prisma.PermissionListRelationFilter
   versions?: Prisma.VersionSnapshotListRelationFilter
+  activity?: Prisma.ActivityEventListRelationFilter
 }, "id" | "clerkId">
 
 export type UserOrderByWithAggregationInput = {
@@ -232,6 +255,8 @@ export type UserOrderByWithAggregationInput = {
   name?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  imageUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  onboardedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
   _max?: Prisma.UserMaxOrderByAggregateInput
   _min?: Prisma.UserMinOrderByAggregateInput
@@ -247,6 +272,8 @@ export type UserScalarWhereWithAggregatesInput = {
   name?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
+  imageUrl?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  onboardedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
 }
 
 export type UserCreateInput = {
@@ -256,10 +283,13 @@ export type UserCreateInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
   ownedDocuments?: Prisma.DocumentCreateNestedManyWithoutOwnerInput
   folders?: Prisma.FolderCreateNestedManyWithoutOwnerInput
   permissions?: Prisma.PermissionCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotCreateNestedManyWithoutCreatorInput
+  activity?: Prisma.ActivityEventCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -269,10 +299,13 @@ export type UserUncheckedCreateInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
   ownedDocuments?: Prisma.DocumentUncheckedCreateNestedManyWithoutOwnerInput
   folders?: Prisma.FolderUncheckedCreateNestedManyWithoutOwnerInput
   permissions?: Prisma.PermissionUncheckedCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotUncheckedCreateNestedManyWithoutCreatorInput
+  activity?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
@@ -282,10 +315,13 @@ export type UserUpdateInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ownedDocuments?: Prisma.DocumentUpdateManyWithoutOwnerNestedInput
   folders?: Prisma.FolderUpdateManyWithoutOwnerNestedInput
   permissions?: Prisma.PermissionUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUpdateManyWithoutCreatorNestedInput
+  activity?: Prisma.ActivityEventUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -295,10 +331,13 @@ export type UserUncheckedUpdateInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ownedDocuments?: Prisma.DocumentUncheckedUpdateManyWithoutOwnerNestedInput
   folders?: Prisma.FolderUncheckedUpdateManyWithoutOwnerNestedInput
   permissions?: Prisma.PermissionUncheckedUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUncheckedUpdateManyWithoutCreatorNestedInput
+  activity?: Prisma.ActivityEventUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -308,6 +347,8 @@ export type UserCreateManyInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
 }
 
 export type UserUpdateManyMutationInput = {
@@ -317,6 +358,8 @@ export type UserUpdateManyMutationInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type UserUncheckedUpdateManyInput = {
@@ -326,6 +369,8 @@ export type UserUncheckedUpdateManyInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type UserCountOrderByAggregateInput = {
@@ -335,6 +380,8 @@ export type UserCountOrderByAggregateInput = {
   name?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  imageUrl?: Prisma.SortOrder
+  onboardedAt?: Prisma.SortOrder
 }
 
 export type UserMaxOrderByAggregateInput = {
@@ -344,6 +391,8 @@ export type UserMaxOrderByAggregateInput = {
   name?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  imageUrl?: Prisma.SortOrder
+  onboardedAt?: Prisma.SortOrder
 }
 
 export type UserMinOrderByAggregateInput = {
@@ -353,6 +402,8 @@ export type UserMinOrderByAggregateInput = {
   name?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  imageUrl?: Prisma.SortOrder
+  onboardedAt?: Prisma.SortOrder
 }
 
 export type UserScalarRelationFilter = {
@@ -375,6 +426,10 @@ export type NullableStringFieldUpdateOperationsInput = {
 
 export type DateTimeFieldUpdateOperationsInput = {
   set?: Date | string
+}
+
+export type NullableDateTimeFieldUpdateOperationsInput = {
+  set?: Date | string | null
 }
 
 export type UserCreateNestedOneWithoutFoldersInput = {
@@ -419,6 +474,20 @@ export type UserUpdateOneRequiredWithoutPermissionsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutPermissionsInput, Prisma.UserUpdateWithoutPermissionsInput>, Prisma.UserUncheckedUpdateWithoutPermissionsInput>
 }
 
+export type UserCreateNestedOneWithoutActivityInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutActivityInput, Prisma.UserUncheckedCreateWithoutActivityInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutActivityInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutActivityNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutActivityInput, Prisma.UserUncheckedCreateWithoutActivityInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutActivityInput
+  upsert?: Prisma.UserUpsertWithoutActivityInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutActivityInput, Prisma.UserUpdateWithoutActivityInput>, Prisma.UserUncheckedUpdateWithoutActivityInput>
+}
+
 export type UserCreateNestedOneWithoutVersionsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutVersionsInput, Prisma.UserUncheckedCreateWithoutVersionsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutVersionsInput
@@ -442,9 +511,12 @@ export type UserCreateWithoutFoldersInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
   ownedDocuments?: Prisma.DocumentCreateNestedManyWithoutOwnerInput
   permissions?: Prisma.PermissionCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotCreateNestedManyWithoutCreatorInput
+  activity?: Prisma.ActivityEventCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutFoldersInput = {
@@ -454,9 +526,12 @@ export type UserUncheckedCreateWithoutFoldersInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
   ownedDocuments?: Prisma.DocumentUncheckedCreateNestedManyWithoutOwnerInput
   permissions?: Prisma.PermissionUncheckedCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotUncheckedCreateNestedManyWithoutCreatorInput
+  activity?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutFoldersInput = {
@@ -482,9 +557,12 @@ export type UserUpdateWithoutFoldersInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ownedDocuments?: Prisma.DocumentUpdateManyWithoutOwnerNestedInput
   permissions?: Prisma.PermissionUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUpdateManyWithoutCreatorNestedInput
+  activity?: Prisma.ActivityEventUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutFoldersInput = {
@@ -494,9 +572,12 @@ export type UserUncheckedUpdateWithoutFoldersInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ownedDocuments?: Prisma.DocumentUncheckedUpdateManyWithoutOwnerNestedInput
   permissions?: Prisma.PermissionUncheckedUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUncheckedUpdateManyWithoutCreatorNestedInput
+  activity?: Prisma.ActivityEventUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutOwnedDocumentsInput = {
@@ -506,9 +587,12 @@ export type UserCreateWithoutOwnedDocumentsInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
   folders?: Prisma.FolderCreateNestedManyWithoutOwnerInput
   permissions?: Prisma.PermissionCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotCreateNestedManyWithoutCreatorInput
+  activity?: Prisma.ActivityEventCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutOwnedDocumentsInput = {
@@ -518,9 +602,12 @@ export type UserUncheckedCreateWithoutOwnedDocumentsInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
   folders?: Prisma.FolderUncheckedCreateNestedManyWithoutOwnerInput
   permissions?: Prisma.PermissionUncheckedCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotUncheckedCreateNestedManyWithoutCreatorInput
+  activity?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutOwnedDocumentsInput = {
@@ -546,9 +633,12 @@ export type UserUpdateWithoutOwnedDocumentsInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   folders?: Prisma.FolderUpdateManyWithoutOwnerNestedInput
   permissions?: Prisma.PermissionUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUpdateManyWithoutCreatorNestedInput
+  activity?: Prisma.ActivityEventUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutOwnedDocumentsInput = {
@@ -558,9 +648,12 @@ export type UserUncheckedUpdateWithoutOwnedDocumentsInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   folders?: Prisma.FolderUncheckedUpdateManyWithoutOwnerNestedInput
   permissions?: Prisma.PermissionUncheckedUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUncheckedUpdateManyWithoutCreatorNestedInput
+  activity?: Prisma.ActivityEventUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutPermissionsInput = {
@@ -570,9 +663,12 @@ export type UserCreateWithoutPermissionsInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
   ownedDocuments?: Prisma.DocumentCreateNestedManyWithoutOwnerInput
   folders?: Prisma.FolderCreateNestedManyWithoutOwnerInput
   versions?: Prisma.VersionSnapshotCreateNestedManyWithoutCreatorInput
+  activity?: Prisma.ActivityEventCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutPermissionsInput = {
@@ -582,9 +678,12 @@ export type UserUncheckedCreateWithoutPermissionsInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
   ownedDocuments?: Prisma.DocumentUncheckedCreateNestedManyWithoutOwnerInput
   folders?: Prisma.FolderUncheckedCreateNestedManyWithoutOwnerInput
   versions?: Prisma.VersionSnapshotUncheckedCreateNestedManyWithoutCreatorInput
+  activity?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutPermissionsInput = {
@@ -610,9 +709,12 @@ export type UserUpdateWithoutPermissionsInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ownedDocuments?: Prisma.DocumentUpdateManyWithoutOwnerNestedInput
   folders?: Prisma.FolderUpdateManyWithoutOwnerNestedInput
   versions?: Prisma.VersionSnapshotUpdateManyWithoutCreatorNestedInput
+  activity?: Prisma.ActivityEventUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPermissionsInput = {
@@ -622,8 +724,87 @@ export type UserUncheckedUpdateWithoutPermissionsInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ownedDocuments?: Prisma.DocumentUncheckedUpdateManyWithoutOwnerNestedInput
   folders?: Prisma.FolderUncheckedUpdateManyWithoutOwnerNestedInput
+  versions?: Prisma.VersionSnapshotUncheckedUpdateManyWithoutCreatorNestedInput
+  activity?: Prisma.ActivityEventUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutActivityInput = {
+  id?: string
+  clerkId: string
+  email: string
+  name?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
+  ownedDocuments?: Prisma.DocumentCreateNestedManyWithoutOwnerInput
+  folders?: Prisma.FolderCreateNestedManyWithoutOwnerInput
+  permissions?: Prisma.PermissionCreateNestedManyWithoutUserInput
+  versions?: Prisma.VersionSnapshotCreateNestedManyWithoutCreatorInput
+}
+
+export type UserUncheckedCreateWithoutActivityInput = {
+  id?: string
+  clerkId: string
+  email: string
+  name?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
+  ownedDocuments?: Prisma.DocumentUncheckedCreateNestedManyWithoutOwnerInput
+  folders?: Prisma.FolderUncheckedCreateNestedManyWithoutOwnerInput
+  permissions?: Prisma.PermissionUncheckedCreateNestedManyWithoutUserInput
+  versions?: Prisma.VersionSnapshotUncheckedCreateNestedManyWithoutCreatorInput
+}
+
+export type UserCreateOrConnectWithoutActivityInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutActivityInput, Prisma.UserUncheckedCreateWithoutActivityInput>
+}
+
+export type UserUpsertWithoutActivityInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutActivityInput, Prisma.UserUncheckedUpdateWithoutActivityInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutActivityInput, Prisma.UserUncheckedCreateWithoutActivityInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutActivityInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutActivityInput, Prisma.UserUncheckedUpdateWithoutActivityInput>
+}
+
+export type UserUpdateWithoutActivityInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ownedDocuments?: Prisma.DocumentUpdateManyWithoutOwnerNestedInput
+  folders?: Prisma.FolderUpdateManyWithoutOwnerNestedInput
+  permissions?: Prisma.PermissionUpdateManyWithoutUserNestedInput
+  versions?: Prisma.VersionSnapshotUpdateManyWithoutCreatorNestedInput
+}
+
+export type UserUncheckedUpdateWithoutActivityInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ownedDocuments?: Prisma.DocumentUncheckedUpdateManyWithoutOwnerNestedInput
+  folders?: Prisma.FolderUncheckedUpdateManyWithoutOwnerNestedInput
+  permissions?: Prisma.PermissionUncheckedUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUncheckedUpdateManyWithoutCreatorNestedInput
 }
 
@@ -634,9 +815,12 @@ export type UserCreateWithoutVersionsInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
   ownedDocuments?: Prisma.DocumentCreateNestedManyWithoutOwnerInput
   folders?: Prisma.FolderCreateNestedManyWithoutOwnerInput
   permissions?: Prisma.PermissionCreateNestedManyWithoutUserInput
+  activity?: Prisma.ActivityEventCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutVersionsInput = {
@@ -646,9 +830,12 @@ export type UserUncheckedCreateWithoutVersionsInput = {
   name?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
   ownedDocuments?: Prisma.DocumentUncheckedCreateNestedManyWithoutOwnerInput
   folders?: Prisma.FolderUncheckedCreateNestedManyWithoutOwnerInput
   permissions?: Prisma.PermissionUncheckedCreateNestedManyWithoutUserInput
+  activity?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutVersionsInput = {
@@ -674,9 +861,12 @@ export type UserUpdateWithoutVersionsInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ownedDocuments?: Prisma.DocumentUpdateManyWithoutOwnerNestedInput
   folders?: Prisma.FolderUpdateManyWithoutOwnerNestedInput
   permissions?: Prisma.PermissionUpdateManyWithoutUserNestedInput
+  activity?: Prisma.ActivityEventUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutVersionsInput = {
@@ -686,9 +876,12 @@ export type UserUncheckedUpdateWithoutVersionsInput = {
   name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   ownedDocuments?: Prisma.DocumentUncheckedUpdateManyWithoutOwnerNestedInput
   folders?: Prisma.FolderUncheckedUpdateManyWithoutOwnerNestedInput
   permissions?: Prisma.PermissionUncheckedUpdateManyWithoutUserNestedInput
+  activity?: Prisma.ActivityEventUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -701,6 +894,7 @@ export type UserCountOutputType = {
   folders: number
   permissions: number
   versions: number
+  activity: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -708,6 +902,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   folders?: boolean | UserCountOutputTypeCountFoldersArgs
   permissions?: boolean | UserCountOutputTypeCountPermissionsArgs
   versions?: boolean | UserCountOutputTypeCountVersionsArgs
+  activity?: boolean | UserCountOutputTypeCountActivityArgs
 }
 
 /**
@@ -748,6 +943,13 @@ export type UserCountOutputTypeCountVersionsArgs<ExtArgs extends runtime.Types.E
   where?: Prisma.VersionSnapshotWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountActivityArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ActivityEventWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -756,10 +958,13 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   name?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  imageUrl?: boolean
+  onboardedAt?: boolean
   ownedDocuments?: boolean | Prisma.User$ownedDocumentsArgs<ExtArgs>
   folders?: boolean | Prisma.User$foldersArgs<ExtArgs>
   permissions?: boolean | Prisma.User$permissionsArgs<ExtArgs>
   versions?: boolean | Prisma.User$versionsArgs<ExtArgs>
+  activity?: boolean | Prisma.User$activityArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -770,6 +975,8 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   name?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  imageUrl?: boolean
+  onboardedAt?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -779,6 +986,8 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   name?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  imageUrl?: boolean
+  onboardedAt?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectScalar = {
@@ -788,14 +997,17 @@ export type UserSelectScalar = {
   name?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  imageUrl?: boolean
+  onboardedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "clerkId" | "email" | "name" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "clerkId" | "email" | "name" | "createdAt" | "updatedAt" | "imageUrl" | "onboardedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   ownedDocuments?: boolean | Prisma.User$ownedDocumentsArgs<ExtArgs>
   folders?: boolean | Prisma.User$foldersArgs<ExtArgs>
   permissions?: boolean | Prisma.User$permissionsArgs<ExtArgs>
   versions?: boolean | Prisma.User$versionsArgs<ExtArgs>
+  activity?: boolean | Prisma.User$activityArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -808,6 +1020,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     folders: Prisma.$FolderPayload<ExtArgs>[]
     permissions: Prisma.$PermissionPayload<ExtArgs>[]
     versions: Prisma.$VersionSnapshotPayload<ExtArgs>[]
+    activity: Prisma.$ActivityEventPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -816,6 +1029,8 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     name: string | null
     createdAt: Date
     updatedAt: Date
+    imageUrl: string | null
+    onboardedAt: Date | null
   }, ExtArgs["result"]["user"]>
   composites: {}
 }
@@ -1214,6 +1429,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   folders<T extends Prisma.User$foldersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$foldersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$FolderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   permissions<T extends Prisma.User$permissionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$permissionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PermissionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   versions<T extends Prisma.User$versionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$versionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VersionSnapshotPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  activity<T extends Prisma.User$activityArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$activityArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ActivityEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1249,6 +1465,8 @@ export interface UserFieldRefs {
   readonly name: Prisma.FieldRef<"User", 'String'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"User", 'DateTime'>
+  readonly imageUrl: Prisma.FieldRef<"User", 'String'>
+  readonly onboardedAt: Prisma.FieldRef<"User", 'DateTime'>
 }
     
 
@@ -1735,6 +1953,30 @@ export type User$versionsArgs<ExtArgs extends runtime.Types.Extensions.InternalA
   take?: number
   skip?: number
   distinct?: Prisma.VersionSnapshotScalarFieldEnum | Prisma.VersionSnapshotScalarFieldEnum[]
+}
+
+/**
+ * User.activity
+ */
+export type User$activityArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ActivityEvent
+   */
+  select?: Prisma.ActivityEventSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ActivityEvent
+   */
+  omit?: Prisma.ActivityEventOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ActivityEventInclude<ExtArgs> | null
+  where?: Prisma.ActivityEventWhereInput
+  orderBy?: Prisma.ActivityEventOrderByWithRelationInput | Prisma.ActivityEventOrderByWithRelationInput[]
+  cursor?: Prisma.ActivityEventWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ActivityEventScalarFieldEnum | Prisma.ActivityEventScalarFieldEnum[]
 }
 
 /**

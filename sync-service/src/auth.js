@@ -56,6 +56,7 @@ export async function authenticateHandshake({ docId, token, shareToken }) {
           name: user.name ?? user.email,
           color: colorFor(user.id),
           guest: false,
+          imageUrl: user.imageUrl ?? null,
         },
         role,
       };

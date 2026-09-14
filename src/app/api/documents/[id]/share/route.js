@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { handle, apiError, json, requireDocument } from '@/lib/api-helpers';
 import { track, EVENTS } from '@/lib/telemetry';
 import { ROLES } from '@/lib/permissions';
+import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
 
 const VALID_ROLES = new Set([ROLES.EDITOR, ROLES.COMMENTER, ROLES.VIEWER]);
 
@@ -102,6 +103,13 @@ export async function POST(request, { params }) {
       select: { id: true, role: true },
     });
 
+    logActivity(ACTIVITY_TYPES.DOC_SHARED, {
+      userId: user.id,
+      documentId: id,
+      docTitle: doc.title,
+      meta: { email, role: permission.role },
+    });
+
     track(EVENTS.DOC_SHARED, {
       document_id: id,
       role,
@@ -148,7 +156,7 @@ async function inngestSendInvite(data) {
 export async function PATCH(request, { params }) {
   return handle(async () => {
     const { id } = await params;
-    await requireDocument(request, id, 'OWNER');
+    const { user, document } = await requireDocument(request, id, 'OWNER');
     const body = await request.json().catch(() => ({}));
 
     if ('permissionId' in body) {
@@ -169,6 +177,12 @@ export async function PATCH(request, { params }) {
         document_id: id,
         permission_id: existing.id,
         role: body.role,
+      });
+      logActivity(ACTIVITY_TYPES.ACCESS_GRANTED, {
+        userId: user.id,
+        documentId: id,
+        docTitle: document.title,
+        meta: { permissionId: existing.id, role: body.role },
       });
       return json({ ok: true });
     }
@@ -199,6 +213,15 @@ export async function PATCH(request, { params }) {
         body.linkEnabled ? EVENTS.DOC_SHARED : EVENTS.DOC_LINK_REVOKED,
         { document_id: id, invite_type: 'link', role: updated.shareRole }
       );
+      logActivity(
+        body.linkEnabled ? ACTIVITY_TYPES.DOC_SHARED_LINK : ACTIVITY_TYPES.DOC_SHARED,
+        {
+          userId: user.id,
+          documentId: id,
+          docTitle: document.title,
+          meta: { link: true, role: updated.shareRole, revoked: !body.linkEnabled },
+        }
+      );
 
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
       return json({
@@ -220,7 +243,7 @@ export async function PATCH(request, { params }) {
 export async function DELETE(request, { params }) {
   return handle(async () => {
     const { id } = await params;
-    await requireDocument(request, id, 'OWNER');
+    const { user, document } = await requireDocument(request, id, 'OWNER');
 
     const url = new URL(request.url);
     const permissionId = url.searchParams.get('permissionId');
@@ -235,6 +258,12 @@ export async function DELETE(request, { params }) {
       document_id: id,
       permission_id: permissionId,
       removed: true,
+    });
+    logActivity(ACTIVITY_TYPES.ACCESS_GRANTED, {
+      userId: user.id,
+      documentId: id,
+      docTitle: document.title,
+      meta: { permissionId, removed: true },
     });
     return json({ ok: true });
   });

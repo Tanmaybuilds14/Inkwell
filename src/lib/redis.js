@@ -30,6 +30,7 @@ export function getPublisher() {
     publisher.on('error', (err) => {
       console.error('[redis] publisher error:', err.message);
     });
+    publisher.on('close', () => { publisher = null; });
   }
   return publisher;
 }

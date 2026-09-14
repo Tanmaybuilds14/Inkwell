@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { handle, apiError, json, requireDocument } from '@/lib/api-helpers';
 import { track, EVENTS } from '@/lib/telemetry';
+import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
 
 export async function POST(request, { params }) {
   return handle(async () => {
@@ -35,6 +36,7 @@ export async function POST(request, { params }) {
     });
 
     track(EVENTS.DOC_RESTORED, { document_id: id, actor_id: user.id });
+    logActivity(ACTIVITY_TYPES.DOC_RESTORED, { userId: user.id, documentId: id, docTitle: restored.title });
     return json({ document: restored });
   });
 }

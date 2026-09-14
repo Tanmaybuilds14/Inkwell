@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { handle, apiError, json } from '@/lib/api-helpers';
+import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
 
 const TRASH_RETENTION_DAYS = 30;
 
@@ -47,13 +48,19 @@ export async function DELETE(request) {
 
     if (docId) {
       // Scoped by owner so permission checks can't be bypassed by ID guessing.
-      await prisma.document.deleteMany({
+      const deleted = await prisma.document.deleteMany({
         where: { id: docId, ownerId: user.id, deletedAt: { not: null } },
       });
+      if (deleted.count > 0) {
+        logActivity(ACTIVITY_TYPES.DOC_PURGED, { userId: user.id, documentId: docId });
+      }
     } else {
-      await prisma.document.deleteMany({
+      const deleted = await prisma.document.deleteMany({
         where: { ownerId: user.id, deletedAt: { not: null } },
       });
+      if (deleted.count > 0) {
+        logActivity(ACTIVITY_TYPES.DOC_PURGED, { userId: user.id, meta: { count: deleted.count } });
+      }
     }
     return json({ ok: true });
   });

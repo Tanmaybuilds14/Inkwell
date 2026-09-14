@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 import { handle, apiError, json } from '@/lib/api-helpers';
 import { track, EVENTS } from '@/lib/telemetry';
+import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
 
 export async function POST(request) {
   return handle(async () => {
@@ -30,6 +31,7 @@ export async function POST(request) {
     });
 
     track(EVENTS.DOC_CREATED, { document_id: doc.id, owner_id: user.id });
+    logActivity(ACTIVITY_TYPES.DOC_CREATED, { userId: user.id, documentId: doc.id, docTitle: doc.title });
     return json({ document: doc }, { status: 201 });
   });
 }

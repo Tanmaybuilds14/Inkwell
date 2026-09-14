@@ -10,12 +10,21 @@ export function PresenceBar({ peers }) {
         <span
           key={`${peer.name}-${i}`}
           title={peer.name}
-          className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-card text-[10px] font-bold text-white"
+          className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border-2 border-card text-[10px] font-bold text-white"
           style={{
             background: peer.color ?? "#78716c",
           }}
         >
-          {initials(peer.name)}
+          {peer.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- data: URL from the peer's profile
+            <img
+              src={peer.imageUrl}
+              alt={peer.name ?? "Peer"}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            initials(peer.name)
+          )}
         </span>
       ))}
       {peers.length > 5 ? (

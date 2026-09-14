@@ -31,14 +31,19 @@ export async function ensureUser(clerkId) {
   if (claimed && claimed.clerkId.startsWith('pending_')) {
     return prisma.user.update({
       where: { id: claimed.id },
-      data: { clerkId, name },
+      data: { clerkId, ...(name && claimed.name == null ? { name } : {}) },
     });
   }
+
+  // Sync the Clerk-derived name only while the local row has none — once the
+  // user sets a display name in their profile, it must not be clobbered by
+  // the next ensureUser() call. Email still stays in sync with Clerk.
+  const existing = await prisma.user.findUnique({ where: { clerkId } });
 
   // Use upsert directly to avoid TOCTOU race between findUnique and create.
   return prisma.user.upsert({
     where: { clerkId },
-    update: { email, name },
+    update: { email, ...(existing?.name == null && name ? { name } : {}) },
     create: { clerkId, email, name },
   });
 }

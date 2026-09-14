@@ -27,36 +27,41 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Profile settings (Phase 4)
+  imageUrl    String?
+  onboardedAt DateTime?
+
   ownedDocuments Document[]        @relation("DocumentOwner")
   folders        Folder[]          @relation("FolderOwner")
   permissions    Permission[]      @relation("UserPermissions")
   versions       VersionSnapshot[] @relation("UserVersions")
+  activity       ActivityEvent[]   @relation("UserActivity")
 
   @@index([email])
 }
 
 model Folder {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   name      String
   ownerId   String
-  owner     User     @relation("FolderOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  owner     User       @relation("FolderOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   parentId  String?
-  parent    Folder?  @relation("FolderNesting", fields: [parentId], references: [id], onDelete: SetNull)
-  children  Folder[] @relation("FolderNesting")
+  parent    Folder?    @relation("FolderNesting", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Folder[]   @relation("FolderNesting")
   documents Document[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   @@index([ownerId])
 }
 
 model Document {
-  id        String   @id @default(cuid())
-  title     String   @default("Untitled")
-  ownerId   String
-  owner     User     @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  folderId  String?
-  folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  id       String  @id @default(cuid())
+  title    String  @default("Untitled")
+  ownerId  String
+  owner    User    @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  folderId String?
+  folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   // Yjs CRDT state (Phase 2)
   snapshot    Bytes?
@@ -67,8 +72,8 @@ model Document {
   originalFolderId String?
 
   // Link sharing — signed revocable token, not the document ID (Phase 3)
-  shareToken  String? @unique
-  shareRole   Role    @default(VIEWER)
+  shareToken   String? @unique
+  shareRole    Role    @default(VIEWER)
   shareEnabled Boolean @default(false)
 
   schemaVersion Int      @default(1)
@@ -97,6 +102,19 @@ model Permission {
 
   @@unique([documentId, userId])
   @@index([userId])
+}
+
+model ActivityEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("UserActivity", fields: [userId], references: [id], onDelete: Cascade)
+  type       String
+  documentId String?
+  docTitle   String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model VersionSnapshot {
