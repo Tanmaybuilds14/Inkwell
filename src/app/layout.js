@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ToastProvider } from "@/components/ui/toast";
 import { OnboardingGate } from "@/components/onboarding-gate";
+import { GlobalErrorReporter } from "@/components/global-error-reporter";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -46,6 +47,7 @@ export default function RootLayout({ children }) {
               <ToastProvider>
                 {children}
                 <OnboardingGate />
+                <GlobalErrorReporter />
               </ToastProvider>
             </TooltipProvider>
           </ThemeProvider>
