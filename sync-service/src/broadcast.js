@@ -1,5 +1,6 @@
 import Redis from 'ioredis';
 import { applyUpdate, encodeStateAsUpdate } from 'yjs';
+import { warnRateLimited } from './log.js';
 
 /**
  * Message-kind constants shared (by value) with src/lib/redis.js.
@@ -33,19 +34,28 @@ function getSub() {
   if (!sub) {
     sub = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
       maxRetriesPerRequest: null,
+      // Keep internal command queues unbounded (pub/sub semantics), but stop
+      // ioredis from probing availability with its own PINGs — we probe once
+      // at startup instead, so a down Redis surfaces as one clear message.
+      enableOfflineQueue: true,
+      enableAutoPipelining: false,
     });
-    sub.on('error', (err) => console.error('[redis] subscriber error:', err.message));
-    sub.on('close', () => {
-      sub = null;
-    });
+    sub.on('error', (err) =>
+      warnRateLimited('redis-sub', '[redis] subscriber error:', err.message)
+    );
+    // NOTE: deliberately no `close → sub = null` here. ioredis keeps the
+    // client object alive and auto-reconnects it; nulling the handle while
+    // the old client still reconnects produces two live subscribers (each
+    // remote message delivered twice) and leaked connections.
     sub.on('ready', () => {
-      // Re-subscribe all tracked channels and re-register handlers after
-      // the connection was dropped and a new client was created.
-      for (const [channel, handlers] of subscriptions) {
+      // A fresh connection forgets all pub/sub subscriptions, so re-subscribe
+      // every tracked channel. Handlers themselves stay registered on this
+      // client instance across reconnects — re-adding them here would make
+      // every remote message fan out twice.
+      for (const channel of subscriptions.keys()) {
         sub.subscribe(channel).catch((err) =>
           console.error(`[redis] re-subscribe failed for ${channel}:`, err.message)
         );
-        for (const h of handlers) sub.on('message', h);
       }
     });
   }
@@ -56,9 +66,13 @@ function getPub() {
   if (!pub) {
     pub = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
       maxRetriesPerRequest: null,
+      enableOfflineQueue: true,
+      enableAutoPipelining: false,
     });
-    pub.on('error', (err) => console.error('[redis] publisher error:', err.message));
-    pub.on('close', () => { pub = null; });
+    pub.on('error', (err) =>
+      warnRateLimited('redis-pub', '[redis] publisher error:', err.message)
+    );
+    // Same reasoning as the subscriber: keep one self-healing client.
   }
   return pub;
 }
@@ -94,11 +108,21 @@ export function subscribeToDocument(docId, onMessage) {
   };
 }
 
+/**
+ * Fire-and-forget publish. Callers invoke this from hot paths (every doc
+ * update) without awaiting or catching, so a failed publish must never
+ * surface as an unhandled rejection — that would take the whole process
+ * down during a Redis outage. Failures are logged (rate-limited) instead.
+ */
 export function publishMessage(docId, kind, payload) {
-  return getPub().publish(
-    channelFor(docId),
-    JSON.stringify({ origin: INSTANCE_ID, docId, kind, ...payload })
-  );
+  return getPub()
+    .publish(
+      channelFor(docId),
+      JSON.stringify({ origin: INSTANCE_ID, docId, kind, ...payload })
+    )
+    .catch((err) =>
+      warnRateLimited('redis-pub', '[redis] publish failed:', err.message)
+    );
 }
 
 /** Convenience wrappers used by rooms.js */

@@ -26,12 +26,14 @@ export async function ensureUser(clerkId) {
   }
 
   // Claim any pre-provisioned row created when this address was invited,
-  // so permissions granted by email carry over on first sign-in.
+  // so permissions granted by email carry over on first sign-in. The real
+  // email replaces the placeholder here too — otherwise every subsequent
+  // call re-runs the Clerk lookup just to keep the placeholder in sync.
   const claimed = await prisma.user.findFirst({ where: { email } });
   if (claimed && claimed.clerkId.startsWith('pending_')) {
     return prisma.user.update({
       where: { id: claimed.id },
-      data: { clerkId, ...(name && claimed.name == null ? { name } : {}) },
+      data: { clerkId, email, ...(name && claimed.name == null ? { name } : {}) },
     });
   }
 

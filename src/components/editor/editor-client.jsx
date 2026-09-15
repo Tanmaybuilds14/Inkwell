@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { SignInButton, useAuth, useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { History, Share2, Trash2 } from "lucide-react";
 import { AppHeader, api } from "@/components/app-header";
@@ -276,13 +276,31 @@ export function EditorClient({ documentId }) {
   }
 
   if (error) {
+    // A signed-out visitor hitting an invite link sees the same 404 as a
+    // truly unauthorized user — the API is deliberately fail-closed. The
+    // client knows its own auth state, so offer sign-in instead of a dead end.
+    const signedOut = !isSignedIn;
     return (
       <div className="flex min-h-screen flex-col">
         <AppHeader backHref="/documents" />
         <main className="flex flex-1 items-center justify-center text-center">
           <div>
             <p className="text-lg font-medium">Can&apos;t open this document</p>
-            <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {signedOut ? "Sign in to open this document." : error}
+            </p>
+            {signedOut ? (
+              <SignInButton
+                mode="modal"
+                forceRedirectUrl={
+                  typeof window !== "undefined"
+                    ? window.location.pathname + window.location.search
+                    : "/documents"
+                }
+              >
+                <Button className="mt-4">Sign in to continue</Button>
+              </SignInButton>
+            ) : null}
           </div>
         </main>
       </div>

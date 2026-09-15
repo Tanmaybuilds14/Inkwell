@@ -48,6 +48,15 @@ export async function authenticateHandshake({ docId, token, shareToken }) {
       if (doc.ownerId === user.id) role = 'OWNER';
       else role = await getUserRoleForDocument(docId, user.id);
 
+      // A signed-in user who holds a valid share link but has no explicit
+      // permission row (e.g. they just accepted an invite) must still get
+      // the link's role. Without this their REST calls succeed via the
+      // same token but every WebSocket session is rejected — the editor
+      // loads once and immediately dies with a terminal 4403.
+      if (!role && doc.shareEnabled && timingSafeEqual(doc.shareToken, shareToken)) {
+        role = doc.shareRole;
+      }
+
       if (!role) return { ok: false, code: 4003, reason: 'No access to this document' };
       return {
         ok: true,

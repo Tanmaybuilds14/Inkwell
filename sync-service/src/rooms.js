@@ -14,6 +14,7 @@ import {
   logActivityEvents,
 } from './db.js';
 import { subscribeToDocument, publishMessage, MESSAGE_KINDS } from './broadcast.js';
+import { warnRateLimited } from './log.js';
 
 const MESSAGE_SYNC = 0;
 const MESSAGE_AWARENESS = 1;
@@ -38,9 +39,19 @@ let lockRedis = null;
 function getLockRedis() {
   if (!lockRedis) {
     const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
-    lockRedis = new Redis(url, { maxRetriesPerRequest: 1 });
-    lockRedis.on('error', (err) => console.error('[redis] lock error:', err.message));
-    lockRedis.on('close', () => { lockRedis = null; });
+    lockRedis = new Redis(url, {
+      maxRetriesPerRequest: 1,
+      // Fail lock commands fast while Redis is down instead of parking them
+      // in the offline queue — acquireLock() degrades to fail-open and the
+      // persistence path keeps saving snapshots (see below).
+      enableOfflineQueue: false,
+    });
+    lockRedis.on('error', (err) =>
+      warnRateLimited('redis-lock', '[redis] lock error:', err.message)
+    );
+    // NOTE: no `close → lockRedis = null`. ioredis auto-reconnects the same
+    // client; nulling the handle while the old one still retries leaks a
+    // zombie reconnector and can end up with two live lock clients.
   }
   return lockRedis;
 }
@@ -54,7 +65,13 @@ export async function acquireLock(docId) {
     const owner = await redis.get(key);
     return owner === INSTANCE_ID;
   } catch {
-    return false;
+    // Redis unreachable → coordination is unavailable, so fail OPEN (true).
+    // The old fail-closed behavior silently skipped EVERY snapshot save for
+    // the whole outage even though Postgres was perfectly healthy — unsaved
+    // edits were then destroyed when the idle room was evicted. On a single
+    // instance (the common case) failing open is exactly correct; on multi-
+    // instance deployments it merely risks a duplicated persist.
+    return true;
   }
 }
 

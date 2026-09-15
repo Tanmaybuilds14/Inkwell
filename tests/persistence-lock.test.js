@@ -81,6 +81,16 @@ describe('Issue 5 — persistence leader lock', () => {
     expect(result).toBe(false);
   });
 
+  it('fails OPEN when Redis is unreachable (snapshots keep saving)', async () => {
+    // Regression: the old catch returned `false`, which made _persistLocked
+    // silently skip EVERY snapshot save for the whole Redis outage — unsaved
+    // edits were then destroyed when the idle room was evicted.
+    mockSet.mockRejectedValue(new Error('ECONNREFUSED 127.0.0.1:6379'));
+    const { acquireLock } = await import('../sync-service/src/rooms.js');
+    const result = await acquireLock('doc-1');
+    expect(result).toBe(true);
+  });
+
   it('releases lock atomically (only deletes if owned)', async () => {
     const { releaseLock } = await import('../sync-service/src/rooms.js');
     await releaseLock('doc-1');

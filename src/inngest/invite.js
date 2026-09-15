@@ -17,10 +17,19 @@ export const sendInviteEmail = inngest.createFunction(
     const { documentId, inviteeEmail, inviterName, documentTitle, role, inviteType } = event.data;
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    // The email link must include the document's share token: an invited
+    // person who isn't signed in yet has no session, and a bare
+    // /documents/<id> URL 404s for them ("Can't open this document").
+    // With the token in the query, both the REST fetch and the WebSocket
+    // handshake authorize the guest immediately.
+    const shareTokenParam =
+      typeof event.data.shareToken === 'string' && event.data.shareToken.length > 0
+        ? `?share=${encodeURIComponent(event.data.shareToken)}`
+        : '';
     const link =
       inviteType === 'link'
         ? event.data.url
-        : `${appUrl}/documents/${documentId}`;
+        : `${appUrl}/documents/${documentId}${shareTokenParam}`;
 
     await step.run('send-email', async () => {
       const subject = `${inviterName ?? 'Someone'} invited you to "${documentTitle}" on Inkwell`;

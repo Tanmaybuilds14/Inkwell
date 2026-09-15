@@ -26,7 +26,9 @@ describe('sync-service edit permission gating', () => {
     mockGet = vi.fn().mockResolvedValue(null);
     mockEval = vi.fn().mockResolvedValue(1);
 
-    vi.doMock('ioredis', () => {
+    // Same resolution note as persistence-lock.test.js: rooms.js resolves
+    // its own sync-service ioredis copy, so mock that specifier directly.
+    vi.doMock('../sync-service/node_modules/ioredis', () => {
       function MockRedis() {
         this.set = mockSet;
         this.get = mockGet;

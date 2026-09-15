@@ -1,10 +1,56 @@
-import 'dotenv/config';
+import './env.js';
 import http from 'node:http';
+import net from 'node:net';
 import { WebSocketServer } from 'ws';
 import { authenticateHandshake } from './auth.js';
 import { getOrCreateRoom, roomStats, listRooms } from './rooms.js';
 
-const PORT = Number(process.env.SYNC_PORT ?? process.env.PORT ?? 1234);
+/**
+ * Parse the port defensively. `Number('')` is 0 (not NaN), and some shells
+ * export PORT=0 — binding an ephemeral port makes the service unreachable
+ * while looking perfectly healthy. Fall back to the documented default.
+ */
+const RAW_PORT = process.env.SYNC_PORT ?? process.env.PORT;
+const PARSED_PORT = Number(RAW_PORT);
+const PORT = RAW_PORT !== undefined && RAW_PORT !== '' && Number.isFinite(PARSED_PORT) && PARSED_PORT > 0
+  ? PARSED_PORT
+  : 1234;
+
+/**
+ * One-shot startup probe so a missing Redis is reported as ONE actionable
+ * message instead of an endless stream of connect errors from the lazy
+ * subscriber/publisher/lock clients (which only connect once a room opens).
+ */
+function probeRedis() {
+  const raw = process.env.REDIS_URL ?? 'redis://localhost:6379';
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    console.error(`[sync] invalid REDIS_URL "${raw}" — expected e.g. redis://localhost:6379`);
+    return;
+  }
+  const port = Number(url.port) || 6379;
+  const socket = net.createConnection({ host: url.hostname, port });
+  socket.setTimeout(2000);
+  socket.once('connect', () => {
+    socket.destroy();
+    console.log(`[sync] redis reachable at ${url.hostname}:${port}`);
+  });
+  const fail = (what) => {
+    socket.destroy();
+    console.error(
+      `[sync] redis NOT reachable at ${url.hostname}:${port} (${what}).\n` +
+      '       The service still starts, but cross-instance sync, broadcast relay\n' +
+      '       and the persistence lock need Redis. Start the bundled one with:\n' +
+      '         docker compose up -d redis\n' +
+      '       (or set REDIS_URL to a reachable instance).'
+    );
+  };
+  socket.once('timeout', () => fail('timeout'));
+  socket.once('error', (err) => fail(err.code ?? err.message));
+}
+probeRedis();
 
 const server = http.createServer((req, res) => {
   if (req.url === '/healthz') {

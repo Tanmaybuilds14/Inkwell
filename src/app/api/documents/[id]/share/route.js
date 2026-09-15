@@ -87,7 +87,7 @@ export async function POST(request, { params }) {
 
     const doc = await prisma.document.findUnique({
       where: { id },
-      select: { title: true },
+      select: { title: true, shareEnabled: true, shareToken: true },
     });
 
     const permission = await prisma.permission.upsert({
@@ -125,6 +125,10 @@ export async function POST(request, { params }) {
       inviterId: user.id,
       role: permission.role,
       inviteType: 'email',
+      // Include the link token when link sharing is active so the invite
+      // email can carry ?share=… — a bare /documents/<id> link 404s for
+      // anyone who isn't signed in (or isn't in the permissions table).
+      shareToken: doc.shareEnabled ? doc.shareToken : null,
     });
 
     return json(
@@ -195,8 +199,14 @@ export async function PATCH(request, { params }) {
           if (!VALID_ROLES.has(body.linkRole)) return apiError(400, 'Invalid link role');
           data.shareRole = body.linkRole;
         }
-        // Mint a token on first enable.
-        data.shareToken = crypto.randomBytes(24).toString('base64url');
+        // Mint a token ONLY when the document has none (first enable).
+        // The token IS the credential embedded in every link the owner has
+        // already copied or emailed — regenerating it on each toggle or role
+        // change instantly breaks all of them ("can't open document" for
+        // every recipient). Revocation below still rotates it.
+        if (!document.shareToken) {
+          data.shareToken = crypto.randomBytes(24).toString('base64url');
+        }
       } else {
         // Revoke: disable AND rotate the token — old links die immediately.
         data.shareEnabled = false;
