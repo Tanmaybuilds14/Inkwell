@@ -31,6 +31,26 @@ const BOOTSTRAP_STATEMENTS = [
     EXCEPTION WHEN others THEN NULL; END $$;`,
   `ALTER TABLE "ActivityEvent" ADD CONSTRAINT "ActivityEvent_userId_fkey"
      FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  // User inbox (collab invites + shared-link receipts)
+  `CREATE TABLE IF NOT EXISTS "InboxItem" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "type" TEXT NOT NULL,
+      "documentId" TEXT,
+      "docTitle" TEXT,
+      "inviterId" TEXT,
+      "meta" JSONB,
+      "readAt" TIMESTAMP(3),
+      "claimedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "InboxItem_pkey" PRIMARY KEY ("id")
+   )`,
+  `CREATE INDEX IF NOT EXISTS "InboxItem_userId_createdAt_idx" ON "InboxItem"("userId", "createdAt" DESC)`,
+  `CREATE INDEX IF NOT EXISTS "InboxItem_userId_readAt_idx" ON "InboxItem"("userId", "readAt")`,
+  `ALTER TABLE "InboxItem" ADD CONSTRAINT "InboxItem_userId_fkey"
+     FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "InboxItem" ADD CONSTRAINT "InboxItem_inviterId_fkey"
+     FOREIGN KEY ("inviterId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
 ];
 
 let done = null;

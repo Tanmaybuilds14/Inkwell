@@ -36,6 +36,8 @@ model User {
   permissions    Permission[]      @relation("UserPermissions")
   versions       VersionSnapshot[] @relation("UserVersions")
   activity       ActivityEvent[]   @relation("UserActivity")
+  inboxItems     InboxItem[]       @relation("UserInbox")
+  inboxInvites   InboxItem[]       @relation("InboxInviter")
 
   @@index([email])
 }
@@ -128,4 +130,23 @@ model VersionSnapshot {
   createdAt  DateTime @default(now())
 
   @@index([documentId, createdAt])
+}
+
+model InboxItem {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("UserInbox", fields: [userId], references: [id], onDelete: Cascade)
+  type       String
+  // Denormalized display fields — survives document deletion/purge.
+  documentId String?
+  docTitle   String?
+  inviterId  String?
+  inviter    User?    @relation("InboxInviter", fields: [inviterId], references: [id], onDelete: SetNull)
+  meta       Json?
+  readAt     DateTime?
+  claimedAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
 }

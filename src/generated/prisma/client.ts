@@ -71,3 +71,8 @@ export type ActivityEvent = Prisma.ActivityEventModel
  * 
  */
 export type VersionSnapshot = Prisma.VersionSnapshotModel
+/**
+ * Model InboxItem
+ * 
+ */
+export type InboxItem = Prisma.InboxItemModel

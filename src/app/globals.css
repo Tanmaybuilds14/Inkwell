@@ -278,3 +278,8 @@ body {
 .fade-out-0 { animation-name: fade-out; }
 .zoom-in-95 { animation-name: zoom-in; }
 .zoom-out-95 { animation-name: zoom-out; }
+
+@keyframes slide-in-from-left { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes slide-out-to-left { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+.slide-in-from-left { animation-name: slide-in-from-left; }
+.slide-out-to-left { animation-name: slide-out-to-left; }

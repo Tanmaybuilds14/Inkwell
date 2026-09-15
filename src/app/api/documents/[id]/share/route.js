@@ -4,6 +4,7 @@ import { handle, apiError, json, requireDocument } from '@/lib/api-helpers';
 import { track, EVENTS } from '@/lib/telemetry';
 import { ROLES } from '@/lib/permissions';
 import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
+import { recordInvite, recordLinkShared } from '@/lib/inbox';
 
 const VALID_ROLES = new Set([ROLES.EDITOR, ROLES.COMMENTER, ROLES.VIEWER]);
 
@@ -108,6 +109,18 @@ export async function POST(request, { params }) {
       documentId: id,
       docTitle: doc.title,
       meta: { email, role: permission.role },
+    });
+
+    // Land the invite in the recipient's inbox. Works even while the user
+    // row is still a pending placeholder — when they first sign in,
+    // ensureUser claims the row by email and the invite is waiting for them.
+    await recordInvite({
+      userId: invitee.id,
+      documentId: id,
+      docTitle: doc.title,
+      inviterId: user.id,
+      inviterName: user.name ?? user.email,
+      role: permission.role,
     });
 
     track(EVENTS.DOC_SHARED, {
@@ -218,6 +231,14 @@ export async function PATCH(request, { params }) {
         data,
         select: { shareEnabled: true, shareRole: true, shareToken: true },
       });
+
+      // Link shares are never saved on a recipient's side (the link IS the
+      // credential), but collaborators who already have rows learn about
+      // the newly-active link through their inbox. Revocation is silent —
+      // removing an item would erase the receipt of the original share.
+      if (updated.shareEnabled) {
+        await recordLinkShared({ documentId: id, docTitle: document.title, actorId: user.id });
+      }
 
       track(
         body.linkEnabled ? EVENTS.DOC_SHARED : EVENTS.DOC_LINK_REVOKED,

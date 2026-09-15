@@ -9,6 +9,7 @@ import { History, Share2, Trash2 } from "lucide-react";
 import { AppHeader, api } from "@/components/app-header";
 import { CollabEditor } from "@/components/editor/collab-editor";
 import { PresenceBar } from "@/components/editor/presence-bar";
+import { CursorLegend } from "@/components/editor/cursor-legend";
 import { ShareDialog } from "@/components/documents/share-dialog";
 import { VersionHistory } from "@/components/documents/version-history";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ export function EditorClient({ documentId }) {
   const [showVersions, setShowVersions] = useState(false);
   const [connState, setConnState] = useState("connecting");
   const [peers, setPeers] = useState([]);
+  const [selfUser, setSelfUser] = useState(null);
   const [title, setTitle] = useState("");
   const titleTimer = useRef(null);
 
@@ -137,10 +139,12 @@ export function EditorClient({ documentId }) {
 
       const displayName =
         user?.fullName ?? user?.username ?? (isSignedIn ? "You" : "Guest");
+      const userColor = colorFor(user?.id ?? doc?.id);
       wsProvider.awareness.setLocalStateField("user", {
         name: displayName,
-        color: colorFor(user?.id ?? doc?.id),
+        color: userColor,
       });
+      setSelfUser({ name: displayName, color: userColor });
 
       wsProvider.on("status", ({ status }) => {
         setConnState(
@@ -392,6 +396,8 @@ export function EditorClient({ documentId }) {
             role={role}
           />
         </main>
+
+        <CursorLegend self={selfUser} peers={peers} />
 
         {showVersions ? (
           <VersionHistory

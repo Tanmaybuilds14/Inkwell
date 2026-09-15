@@ -56,7 +56,8 @@ export const ModelName = {
   Document: 'Document',
   Permission: 'Permission',
   ActivityEvent: 'ActivityEvent',
-  VersionSnapshot: 'VersionSnapshot'
+  VersionSnapshot: 'VersionSnapshot',
+  InboxItem: 'InboxItem'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -158,6 +159,22 @@ export const VersionSnapshotScalarFieldEnum = {
 } as const
 
 export type VersionSnapshotScalarFieldEnum = (typeof VersionSnapshotScalarFieldEnum)[keyof typeof VersionSnapshotScalarFieldEnum]
+
+
+export const InboxItemScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  type: 'type',
+  documentId: 'documentId',
+  docTitle: 'docTitle',
+  inviterId: 'inviterId',
+  meta: 'meta',
+  readAt: 'readAt',
+  claimedAt: 'claimedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type InboxItemScalarFieldEnum = (typeof InboxItemScalarFieldEnum)[keyof typeof InboxItemScalarFieldEnum]
 
 
 export const SortOrder = {

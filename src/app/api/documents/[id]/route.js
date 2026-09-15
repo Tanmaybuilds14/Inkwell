@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { handle, apiError, json, requireDocument } from '@/lib/api-helpers';
 import { track, EVENTS } from '@/lib/telemetry';
 import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
+import { claimSharedLink } from '@/lib/inbox';
 
 const METADATA_SELECT = {
   id: true,
@@ -18,7 +19,10 @@ const METADATA_SELECT = {
 export async function GET(request, { params }) {
   return handle(async () => {
     const { id } = await params;
-    const { user, role } = await requireDocument(request, id, 'VIEWER');
+    const { user, role, document } = await requireDocument(request, id, 'VIEWER');
+
+    const url = new URL(request.url);
+    const shareToken = url.searchParams.get('share');
 
     const full = await prisma.document.findUnique({
       where: { id },
@@ -31,6 +35,19 @@ export async function GET(request, { params }) {
     if (user) {
       // Audit: user opened the document (best-effort, non-blocking).
       logActivity(ACTIVITY_TYPES.DOC_OPENED, { userId: user.id, documentId: id, docTitle: full.title });
+
+      // A signed-in user opening via share link claims a persistent receipt
+      // in their inbox — the doc stays reachable on their side even after
+      // the ?share= token is gone from the URL. Guests can't be saved (no
+      // user row), which is the documented limit of link sharing.
+      if (shareToken) {
+        await claimSharedLink({
+          userId: user.id,
+          documentId: id,
+          docTitle: full.title,
+          ownerId: full.ownerId,
+        });
+      }
     }
 
     return json({

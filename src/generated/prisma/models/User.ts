@@ -211,6 +211,8 @@ export type UserWhereInput = {
   permissions?: Prisma.PermissionListRelationFilter
   versions?: Prisma.VersionSnapshotListRelationFilter
   activity?: Prisma.ActivityEventListRelationFilter
+  inboxItems?: Prisma.InboxItemListRelationFilter
+  inboxInvites?: Prisma.InboxItemListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -227,6 +229,8 @@ export type UserOrderByWithRelationInput = {
   permissions?: Prisma.PermissionOrderByRelationAggregateInput
   versions?: Prisma.VersionSnapshotOrderByRelationAggregateInput
   activity?: Prisma.ActivityEventOrderByRelationAggregateInput
+  inboxItems?: Prisma.InboxItemOrderByRelationAggregateInput
+  inboxInvites?: Prisma.InboxItemOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -246,6 +250,8 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   permissions?: Prisma.PermissionListRelationFilter
   versions?: Prisma.VersionSnapshotListRelationFilter
   activity?: Prisma.ActivityEventListRelationFilter
+  inboxItems?: Prisma.InboxItemListRelationFilter
+  inboxInvites?: Prisma.InboxItemListRelationFilter
 }, "id" | "clerkId">
 
 export type UserOrderByWithAggregationInput = {
@@ -290,6 +296,8 @@ export type UserCreateInput = {
   permissions?: Prisma.PermissionCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotCreateNestedManyWithoutCreatorInput
   activity?: Prisma.ActivityEventCreateNestedManyWithoutUserInput
+  inboxItems?: Prisma.InboxItemCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemCreateNestedManyWithoutInviterInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -306,6 +314,8 @@ export type UserUncheckedCreateInput = {
   permissions?: Prisma.PermissionUncheckedCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotUncheckedCreateNestedManyWithoutCreatorInput
   activity?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutUserInput
+  inboxItems?: Prisma.InboxItemUncheckedCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemUncheckedCreateNestedManyWithoutInviterInput
 }
 
 export type UserUpdateInput = {
@@ -322,6 +332,8 @@ export type UserUpdateInput = {
   permissions?: Prisma.PermissionUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUpdateManyWithoutCreatorNestedInput
   activity?: Prisma.ActivityEventUpdateManyWithoutUserNestedInput
+  inboxItems?: Prisma.InboxItemUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUpdateManyWithoutInviterNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -338,6 +350,8 @@ export type UserUncheckedUpdateInput = {
   permissions?: Prisma.PermissionUncheckedUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUncheckedUpdateManyWithoutCreatorNestedInput
   activity?: Prisma.ActivityEventUncheckedUpdateManyWithoutUserNestedInput
+  inboxItems?: Prisma.InboxItemUncheckedUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUncheckedUpdateManyWithoutInviterNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -504,6 +518,36 @@ export type UserUpdateOneWithoutVersionsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutVersionsInput, Prisma.UserUpdateWithoutVersionsInput>, Prisma.UserUncheckedUpdateWithoutVersionsInput>
 }
 
+export type UserCreateNestedOneWithoutInboxItemsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutInboxItemsInput, Prisma.UserUncheckedCreateWithoutInboxItemsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutInboxItemsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserCreateNestedOneWithoutInboxInvitesInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutInboxInvitesInput, Prisma.UserUncheckedCreateWithoutInboxInvitesInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutInboxInvitesInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutInboxItemsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutInboxItemsInput, Prisma.UserUncheckedCreateWithoutInboxItemsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutInboxItemsInput
+  upsert?: Prisma.UserUpsertWithoutInboxItemsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutInboxItemsInput, Prisma.UserUpdateWithoutInboxItemsInput>, Prisma.UserUncheckedUpdateWithoutInboxItemsInput>
+}
+
+export type UserUpdateOneWithoutInboxInvitesNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutInboxInvitesInput, Prisma.UserUncheckedCreateWithoutInboxInvitesInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutInboxInvitesInput
+  upsert?: Prisma.UserUpsertWithoutInboxInvitesInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutInboxInvitesInput, Prisma.UserUpdateWithoutInboxInvitesInput>, Prisma.UserUncheckedUpdateWithoutInboxInvitesInput>
+}
+
 export type UserCreateWithoutFoldersInput = {
   id?: string
   clerkId: string
@@ -517,6 +561,8 @@ export type UserCreateWithoutFoldersInput = {
   permissions?: Prisma.PermissionCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotCreateNestedManyWithoutCreatorInput
   activity?: Prisma.ActivityEventCreateNestedManyWithoutUserInput
+  inboxItems?: Prisma.InboxItemCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemCreateNestedManyWithoutInviterInput
 }
 
 export type UserUncheckedCreateWithoutFoldersInput = {
@@ -532,6 +578,8 @@ export type UserUncheckedCreateWithoutFoldersInput = {
   permissions?: Prisma.PermissionUncheckedCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotUncheckedCreateNestedManyWithoutCreatorInput
   activity?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutUserInput
+  inboxItems?: Prisma.InboxItemUncheckedCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemUncheckedCreateNestedManyWithoutInviterInput
 }
 
 export type UserCreateOrConnectWithoutFoldersInput = {
@@ -563,6 +611,8 @@ export type UserUpdateWithoutFoldersInput = {
   permissions?: Prisma.PermissionUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUpdateManyWithoutCreatorNestedInput
   activity?: Prisma.ActivityEventUpdateManyWithoutUserNestedInput
+  inboxItems?: Prisma.InboxItemUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUpdateManyWithoutInviterNestedInput
 }
 
 export type UserUncheckedUpdateWithoutFoldersInput = {
@@ -578,6 +628,8 @@ export type UserUncheckedUpdateWithoutFoldersInput = {
   permissions?: Prisma.PermissionUncheckedUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUncheckedUpdateManyWithoutCreatorNestedInput
   activity?: Prisma.ActivityEventUncheckedUpdateManyWithoutUserNestedInput
+  inboxItems?: Prisma.InboxItemUncheckedUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUncheckedUpdateManyWithoutInviterNestedInput
 }
 
 export type UserCreateWithoutOwnedDocumentsInput = {
@@ -593,6 +645,8 @@ export type UserCreateWithoutOwnedDocumentsInput = {
   permissions?: Prisma.PermissionCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotCreateNestedManyWithoutCreatorInput
   activity?: Prisma.ActivityEventCreateNestedManyWithoutUserInput
+  inboxItems?: Prisma.InboxItemCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemCreateNestedManyWithoutInviterInput
 }
 
 export type UserUncheckedCreateWithoutOwnedDocumentsInput = {
@@ -608,6 +662,8 @@ export type UserUncheckedCreateWithoutOwnedDocumentsInput = {
   permissions?: Prisma.PermissionUncheckedCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotUncheckedCreateNestedManyWithoutCreatorInput
   activity?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutUserInput
+  inboxItems?: Prisma.InboxItemUncheckedCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemUncheckedCreateNestedManyWithoutInviterInput
 }
 
 export type UserCreateOrConnectWithoutOwnedDocumentsInput = {
@@ -639,6 +695,8 @@ export type UserUpdateWithoutOwnedDocumentsInput = {
   permissions?: Prisma.PermissionUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUpdateManyWithoutCreatorNestedInput
   activity?: Prisma.ActivityEventUpdateManyWithoutUserNestedInput
+  inboxItems?: Prisma.InboxItemUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUpdateManyWithoutInviterNestedInput
 }
 
 export type UserUncheckedUpdateWithoutOwnedDocumentsInput = {
@@ -654,6 +712,8 @@ export type UserUncheckedUpdateWithoutOwnedDocumentsInput = {
   permissions?: Prisma.PermissionUncheckedUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUncheckedUpdateManyWithoutCreatorNestedInput
   activity?: Prisma.ActivityEventUncheckedUpdateManyWithoutUserNestedInput
+  inboxItems?: Prisma.InboxItemUncheckedUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUncheckedUpdateManyWithoutInviterNestedInput
 }
 
 export type UserCreateWithoutPermissionsInput = {
@@ -669,6 +729,8 @@ export type UserCreateWithoutPermissionsInput = {
   folders?: Prisma.FolderCreateNestedManyWithoutOwnerInput
   versions?: Prisma.VersionSnapshotCreateNestedManyWithoutCreatorInput
   activity?: Prisma.ActivityEventCreateNestedManyWithoutUserInput
+  inboxItems?: Prisma.InboxItemCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemCreateNestedManyWithoutInviterInput
 }
 
 export type UserUncheckedCreateWithoutPermissionsInput = {
@@ -684,6 +746,8 @@ export type UserUncheckedCreateWithoutPermissionsInput = {
   folders?: Prisma.FolderUncheckedCreateNestedManyWithoutOwnerInput
   versions?: Prisma.VersionSnapshotUncheckedCreateNestedManyWithoutCreatorInput
   activity?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutUserInput
+  inboxItems?: Prisma.InboxItemUncheckedCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemUncheckedCreateNestedManyWithoutInviterInput
 }
 
 export type UserCreateOrConnectWithoutPermissionsInput = {
@@ -715,6 +779,8 @@ export type UserUpdateWithoutPermissionsInput = {
   folders?: Prisma.FolderUpdateManyWithoutOwnerNestedInput
   versions?: Prisma.VersionSnapshotUpdateManyWithoutCreatorNestedInput
   activity?: Prisma.ActivityEventUpdateManyWithoutUserNestedInput
+  inboxItems?: Prisma.InboxItemUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUpdateManyWithoutInviterNestedInput
 }
 
 export type UserUncheckedUpdateWithoutPermissionsInput = {
@@ -730,6 +796,8 @@ export type UserUncheckedUpdateWithoutPermissionsInput = {
   folders?: Prisma.FolderUncheckedUpdateManyWithoutOwnerNestedInput
   versions?: Prisma.VersionSnapshotUncheckedUpdateManyWithoutCreatorNestedInput
   activity?: Prisma.ActivityEventUncheckedUpdateManyWithoutUserNestedInput
+  inboxItems?: Prisma.InboxItemUncheckedUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUncheckedUpdateManyWithoutInviterNestedInput
 }
 
 export type UserCreateWithoutActivityInput = {
@@ -745,6 +813,8 @@ export type UserCreateWithoutActivityInput = {
   folders?: Prisma.FolderCreateNestedManyWithoutOwnerInput
   permissions?: Prisma.PermissionCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotCreateNestedManyWithoutCreatorInput
+  inboxItems?: Prisma.InboxItemCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemCreateNestedManyWithoutInviterInput
 }
 
 export type UserUncheckedCreateWithoutActivityInput = {
@@ -760,6 +830,8 @@ export type UserUncheckedCreateWithoutActivityInput = {
   folders?: Prisma.FolderUncheckedCreateNestedManyWithoutOwnerInput
   permissions?: Prisma.PermissionUncheckedCreateNestedManyWithoutUserInput
   versions?: Prisma.VersionSnapshotUncheckedCreateNestedManyWithoutCreatorInput
+  inboxItems?: Prisma.InboxItemUncheckedCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemUncheckedCreateNestedManyWithoutInviterInput
 }
 
 export type UserCreateOrConnectWithoutActivityInput = {
@@ -791,6 +863,8 @@ export type UserUpdateWithoutActivityInput = {
   folders?: Prisma.FolderUpdateManyWithoutOwnerNestedInput
   permissions?: Prisma.PermissionUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUpdateManyWithoutCreatorNestedInput
+  inboxItems?: Prisma.InboxItemUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUpdateManyWithoutInviterNestedInput
 }
 
 export type UserUncheckedUpdateWithoutActivityInput = {
@@ -806,6 +880,8 @@ export type UserUncheckedUpdateWithoutActivityInput = {
   folders?: Prisma.FolderUncheckedUpdateManyWithoutOwnerNestedInput
   permissions?: Prisma.PermissionUncheckedUpdateManyWithoutUserNestedInput
   versions?: Prisma.VersionSnapshotUncheckedUpdateManyWithoutCreatorNestedInput
+  inboxItems?: Prisma.InboxItemUncheckedUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUncheckedUpdateManyWithoutInviterNestedInput
 }
 
 export type UserCreateWithoutVersionsInput = {
@@ -821,6 +897,8 @@ export type UserCreateWithoutVersionsInput = {
   folders?: Prisma.FolderCreateNestedManyWithoutOwnerInput
   permissions?: Prisma.PermissionCreateNestedManyWithoutUserInput
   activity?: Prisma.ActivityEventCreateNestedManyWithoutUserInput
+  inboxItems?: Prisma.InboxItemCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemCreateNestedManyWithoutInviterInput
 }
 
 export type UserUncheckedCreateWithoutVersionsInput = {
@@ -836,6 +914,8 @@ export type UserUncheckedCreateWithoutVersionsInput = {
   folders?: Prisma.FolderUncheckedCreateNestedManyWithoutOwnerInput
   permissions?: Prisma.PermissionUncheckedCreateNestedManyWithoutUserInput
   activity?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutUserInput
+  inboxItems?: Prisma.InboxItemUncheckedCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemUncheckedCreateNestedManyWithoutInviterInput
 }
 
 export type UserCreateOrConnectWithoutVersionsInput = {
@@ -867,6 +947,8 @@ export type UserUpdateWithoutVersionsInput = {
   folders?: Prisma.FolderUpdateManyWithoutOwnerNestedInput
   permissions?: Prisma.PermissionUpdateManyWithoutUserNestedInput
   activity?: Prisma.ActivityEventUpdateManyWithoutUserNestedInput
+  inboxItems?: Prisma.InboxItemUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUpdateManyWithoutInviterNestedInput
 }
 
 export type UserUncheckedUpdateWithoutVersionsInput = {
@@ -882,6 +964,176 @@ export type UserUncheckedUpdateWithoutVersionsInput = {
   folders?: Prisma.FolderUncheckedUpdateManyWithoutOwnerNestedInput
   permissions?: Prisma.PermissionUncheckedUpdateManyWithoutUserNestedInput
   activity?: Prisma.ActivityEventUncheckedUpdateManyWithoutUserNestedInput
+  inboxItems?: Prisma.InboxItemUncheckedUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUncheckedUpdateManyWithoutInviterNestedInput
+}
+
+export type UserCreateWithoutInboxItemsInput = {
+  id?: string
+  clerkId: string
+  email: string
+  name?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
+  ownedDocuments?: Prisma.DocumentCreateNestedManyWithoutOwnerInput
+  folders?: Prisma.FolderCreateNestedManyWithoutOwnerInput
+  permissions?: Prisma.PermissionCreateNestedManyWithoutUserInput
+  versions?: Prisma.VersionSnapshotCreateNestedManyWithoutCreatorInput
+  activity?: Prisma.ActivityEventCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemCreateNestedManyWithoutInviterInput
+}
+
+export type UserUncheckedCreateWithoutInboxItemsInput = {
+  id?: string
+  clerkId: string
+  email: string
+  name?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
+  ownedDocuments?: Prisma.DocumentUncheckedCreateNestedManyWithoutOwnerInput
+  folders?: Prisma.FolderUncheckedCreateNestedManyWithoutOwnerInput
+  permissions?: Prisma.PermissionUncheckedCreateNestedManyWithoutUserInput
+  versions?: Prisma.VersionSnapshotUncheckedCreateNestedManyWithoutCreatorInput
+  activity?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutUserInput
+  inboxInvites?: Prisma.InboxItemUncheckedCreateNestedManyWithoutInviterInput
+}
+
+export type UserCreateOrConnectWithoutInboxItemsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutInboxItemsInput, Prisma.UserUncheckedCreateWithoutInboxItemsInput>
+}
+
+export type UserCreateWithoutInboxInvitesInput = {
+  id?: string
+  clerkId: string
+  email: string
+  name?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
+  ownedDocuments?: Prisma.DocumentCreateNestedManyWithoutOwnerInput
+  folders?: Prisma.FolderCreateNestedManyWithoutOwnerInput
+  permissions?: Prisma.PermissionCreateNestedManyWithoutUserInput
+  versions?: Prisma.VersionSnapshotCreateNestedManyWithoutCreatorInput
+  activity?: Prisma.ActivityEventCreateNestedManyWithoutUserInput
+  inboxItems?: Prisma.InboxItemCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutInboxInvitesInput = {
+  id?: string
+  clerkId: string
+  email: string
+  name?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  imageUrl?: string | null
+  onboardedAt?: Date | string | null
+  ownedDocuments?: Prisma.DocumentUncheckedCreateNestedManyWithoutOwnerInput
+  folders?: Prisma.FolderUncheckedCreateNestedManyWithoutOwnerInput
+  permissions?: Prisma.PermissionUncheckedCreateNestedManyWithoutUserInput
+  versions?: Prisma.VersionSnapshotUncheckedCreateNestedManyWithoutCreatorInput
+  activity?: Prisma.ActivityEventUncheckedCreateNestedManyWithoutUserInput
+  inboxItems?: Prisma.InboxItemUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutInboxInvitesInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutInboxInvitesInput, Prisma.UserUncheckedCreateWithoutInboxInvitesInput>
+}
+
+export type UserUpsertWithoutInboxItemsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutInboxItemsInput, Prisma.UserUncheckedUpdateWithoutInboxItemsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutInboxItemsInput, Prisma.UserUncheckedCreateWithoutInboxItemsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutInboxItemsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutInboxItemsInput, Prisma.UserUncheckedUpdateWithoutInboxItemsInput>
+}
+
+export type UserUpdateWithoutInboxItemsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ownedDocuments?: Prisma.DocumentUpdateManyWithoutOwnerNestedInput
+  folders?: Prisma.FolderUpdateManyWithoutOwnerNestedInput
+  permissions?: Prisma.PermissionUpdateManyWithoutUserNestedInput
+  versions?: Prisma.VersionSnapshotUpdateManyWithoutCreatorNestedInput
+  activity?: Prisma.ActivityEventUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUpdateManyWithoutInviterNestedInput
+}
+
+export type UserUncheckedUpdateWithoutInboxItemsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ownedDocuments?: Prisma.DocumentUncheckedUpdateManyWithoutOwnerNestedInput
+  folders?: Prisma.FolderUncheckedUpdateManyWithoutOwnerNestedInput
+  permissions?: Prisma.PermissionUncheckedUpdateManyWithoutUserNestedInput
+  versions?: Prisma.VersionSnapshotUncheckedUpdateManyWithoutCreatorNestedInput
+  activity?: Prisma.ActivityEventUncheckedUpdateManyWithoutUserNestedInput
+  inboxInvites?: Prisma.InboxItemUncheckedUpdateManyWithoutInviterNestedInput
+}
+
+export type UserUpsertWithoutInboxInvitesInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutInboxInvitesInput, Prisma.UserUncheckedUpdateWithoutInboxInvitesInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutInboxInvitesInput, Prisma.UserUncheckedCreateWithoutInboxInvitesInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutInboxInvitesInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutInboxInvitesInput, Prisma.UserUncheckedUpdateWithoutInboxInvitesInput>
+}
+
+export type UserUpdateWithoutInboxInvitesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ownedDocuments?: Prisma.DocumentUpdateManyWithoutOwnerNestedInput
+  folders?: Prisma.FolderUpdateManyWithoutOwnerNestedInput
+  permissions?: Prisma.PermissionUpdateManyWithoutUserNestedInput
+  versions?: Prisma.VersionSnapshotUpdateManyWithoutCreatorNestedInput
+  activity?: Prisma.ActivityEventUpdateManyWithoutUserNestedInput
+  inboxItems?: Prisma.InboxItemUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutInboxInvitesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  imageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  onboardedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  ownedDocuments?: Prisma.DocumentUncheckedUpdateManyWithoutOwnerNestedInput
+  folders?: Prisma.FolderUncheckedUpdateManyWithoutOwnerNestedInput
+  permissions?: Prisma.PermissionUncheckedUpdateManyWithoutUserNestedInput
+  versions?: Prisma.VersionSnapshotUncheckedUpdateManyWithoutCreatorNestedInput
+  activity?: Prisma.ActivityEventUncheckedUpdateManyWithoutUserNestedInput
+  inboxItems?: Prisma.InboxItemUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -895,6 +1147,8 @@ export type UserCountOutputType = {
   permissions: number
   versions: number
   activity: number
+  inboxItems: number
+  inboxInvites: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -903,6 +1157,8 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   permissions?: boolean | UserCountOutputTypeCountPermissionsArgs
   versions?: boolean | UserCountOutputTypeCountVersionsArgs
   activity?: boolean | UserCountOutputTypeCountActivityArgs
+  inboxItems?: boolean | UserCountOutputTypeCountInboxItemsArgs
+  inboxInvites?: boolean | UserCountOutputTypeCountInboxInvitesArgs
 }
 
 /**
@@ -950,6 +1206,20 @@ export type UserCountOutputTypeCountActivityArgs<ExtArgs extends runtime.Types.E
   where?: Prisma.ActivityEventWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountInboxItemsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.InboxItemWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountInboxInvitesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.InboxItemWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -965,6 +1235,8 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   permissions?: boolean | Prisma.User$permissionsArgs<ExtArgs>
   versions?: boolean | Prisma.User$versionsArgs<ExtArgs>
   activity?: boolean | Prisma.User$activityArgs<ExtArgs>
+  inboxItems?: boolean | Prisma.User$inboxItemsArgs<ExtArgs>
+  inboxInvites?: boolean | Prisma.User$inboxInvitesArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -1008,6 +1280,8 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   permissions?: boolean | Prisma.User$permissionsArgs<ExtArgs>
   versions?: boolean | Prisma.User$versionsArgs<ExtArgs>
   activity?: boolean | Prisma.User$activityArgs<ExtArgs>
+  inboxItems?: boolean | Prisma.User$inboxItemsArgs<ExtArgs>
+  inboxInvites?: boolean | Prisma.User$inboxInvitesArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1021,6 +1295,8 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     permissions: Prisma.$PermissionPayload<ExtArgs>[]
     versions: Prisma.$VersionSnapshotPayload<ExtArgs>[]
     activity: Prisma.$ActivityEventPayload<ExtArgs>[]
+    inboxItems: Prisma.$InboxItemPayload<ExtArgs>[]
+    inboxInvites: Prisma.$InboxItemPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1430,6 +1706,8 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   permissions<T extends Prisma.User$permissionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$permissionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PermissionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   versions<T extends Prisma.User$versionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$versionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VersionSnapshotPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   activity<T extends Prisma.User$activityArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$activityArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ActivityEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  inboxItems<T extends Prisma.User$inboxItemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$inboxItemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InboxItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  inboxInvites<T extends Prisma.User$inboxInvitesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$inboxInvitesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InboxItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1977,6 +2255,54 @@ export type User$activityArgs<ExtArgs extends runtime.Types.Extensions.InternalA
   take?: number
   skip?: number
   distinct?: Prisma.ActivityEventScalarFieldEnum | Prisma.ActivityEventScalarFieldEnum[]
+}
+
+/**
+ * User.inboxItems
+ */
+export type User$inboxItemsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the InboxItem
+   */
+  select?: Prisma.InboxItemSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the InboxItem
+   */
+  omit?: Prisma.InboxItemOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.InboxItemInclude<ExtArgs> | null
+  where?: Prisma.InboxItemWhereInput
+  orderBy?: Prisma.InboxItemOrderByWithRelationInput | Prisma.InboxItemOrderByWithRelationInput[]
+  cursor?: Prisma.InboxItemWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.InboxItemScalarFieldEnum | Prisma.InboxItemScalarFieldEnum[]
+}
+
+/**
+ * User.inboxInvites
+ */
+export type User$inboxInvitesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the InboxItem
+   */
+  select?: Prisma.InboxItemSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the InboxItem
+   */
+  omit?: Prisma.InboxItemOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.InboxItemInclude<ExtArgs> | null
+  where?: Prisma.InboxItemWhereInput
+  orderBy?: Prisma.InboxItemOrderByWithRelationInput | Prisma.InboxItemOrderByWithRelationInput[]
+  cursor?: Prisma.InboxItemWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.InboxItemScalarFieldEnum | Prisma.InboxItemScalarFieldEnum[]
 }
 
 /**

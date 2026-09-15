@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Feather } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ProfileButton } from "@/components/profile-button";
+import { InboxBell } from "@/components/inbox/inbox-bell";
 import { cn } from "@/lib/utils";
 
 export function AppHeader({ title = "Inkwell", actions = null, backHref = null, showThemeToggle = true }) {
@@ -26,6 +27,7 @@ export function AppHeader({ title = "Inkwell", actions = null, backHref = null, 
       </div>
       <div className="flex items-center gap-2">
         {actions}
+        {showThemeToggle ? <InboxBell /> : null}
         {showThemeToggle ? <ProfileButton /> : null}
         {showThemeToggle ? <ThemeToggle /> : null}
       </div>

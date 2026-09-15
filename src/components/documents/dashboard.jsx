@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Show } from "@clerk/nextjs";
-import { Plus, ChevronDown, FileText, FolderOpen, Trash2, Pencil, Search } from "lucide-react";
+import { Plus, ChevronDown, FileText, FolderOpen, Trash2, Pencil, Search, Bell, Menu } from "lucide-react";
 import { api } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -40,6 +41,7 @@ export function Dashboard() {
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState("owned");
   const [error, setError] = useState(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const refreshFolders = useCallback(
     () =>
@@ -187,50 +189,46 @@ export function Dashboard() {
   return (
     <Show when="signed-in">
       <div className="flex w-full flex-1">
-        {/* Folder sidebar */}
-        <aside className="hidden w-60 shrink-0 border-r border-border bg-card/30 p-4 md:block">
-          <div className="mb-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Folders
-            </span>
-          </div>
-          <nav className="flex flex-col gap-0.5 text-sm">
-            <SidebarLink active={activeFolderId === null} onClick={() => setActiveFolderId(null)}>
-              All documents
-            </SidebarLink>
-            {folders === null ? (
-              <div className="flex flex-col gap-2 px-2 pt-1">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-4 w-24" />
-              </div>
-            ) : null}
-            {(folders ?? []).map((f) => (
-              <SidebarGroup key={f.id}>
-                <SidebarLink
-                  active={activeFolderId === f.id}
-                  onClick={() => setActiveFolderId(f.id)}
-                >
-                  <span className="flex-1 truncate">{f.name}</span>
-                  <span className="mr-1 text-xs text-muted-foreground">{f._count.documents}</span>
-                </SidebarLink>
-                <span className="flex">
-                  <button title="Rename" onClick={() => renameFolder(f)} className="px-1 text-muted-foreground transition-opacity hover:text-foreground">
-                    <Pencil className="h-3 w-3" />
-                  </button>
-                  <button title="Delete" onClick={() => deleteFolder(f)} className="px-1 text-muted-foreground transition-opacity hover:text-destructive">
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </span>
-              </SidebarGroup>
-            ))}
-          </nav>
-          <div className="mt-6 border-t border-border pt-4">
-            <Link href="/trash" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
-              <Trash2 className="h-4 w-4" />
-              Trash
-            </Link>
-          </div>
+        {/* Mobile sidebar trigger */}
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="fixed left-4 top-3.5 z-30 md:hidden"
+              aria-label="Open sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent>
+            <SheetHeader>
+              <SheetTitle className="sr-only">Navigation</SheetTitle>
+            </SheetHeader>
+            <div className="flex-1 overflow-y-auto px-4">
+              <SidebarNav
+                folders={folders}
+                activeFolderId={activeFolderId}
+                setActiveFolderId={(id) => {
+                  setActiveFolderId(id);
+                  setMobileOpen(false);
+                }}
+                onRename={renameFolder}
+                onDelete={deleteFolder}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* Folder sidebar — desktop */}
+        <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card/30 p-4 md:flex">
+          <SidebarNav
+            folders={folders}
+            activeFolderId={activeFolderId}
+            setActiveFolderId={setActiveFolderId}
+            onRename={renameFolder}
+            onDelete={deleteFolder}
+          />
         </aside>
 
         {/* Main list */}
@@ -366,4 +364,57 @@ function SidebarLink({ active, onClick, children }) {
 
 function SidebarGroup({ children }) {
   return <div className="flex items-center">{children}</div>;
+}
+
+function SidebarNav({ folders, activeFolderId, setActiveFolderId, onRename, onDelete }) {
+  return (
+    <>
+      <div className="mb-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Folders
+        </span>
+      </div>
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto text-sm">
+        <SidebarLink active={activeFolderId === null} onClick={() => setActiveFolderId(null)}>
+          All documents
+        </SidebarLink>
+        {folders === null ? (
+          <div className="flex flex-col gap-2 px-2 pt-1">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+        ) : null}
+        {(folders ?? []).map((f) => (
+          <SidebarGroup key={f.id}>
+            <SidebarLink
+              active={activeFolderId === f.id}
+              onClick={() => setActiveFolderId(f.id)}
+            >
+              <span className="flex-1 truncate">{f.name}</span>
+              <span className="mr-1 text-xs text-muted-foreground">{f._count.documents}</span>
+            </SidebarLink>
+            <span className="flex">
+              <button title="Rename" onClick={() => onRename(f)} className="px-1 text-muted-foreground transition-opacity hover:text-foreground">
+                <Pencil className="h-3 w-3" />
+              </button>
+              <button title="Delete" onClick={() => onDelete(f)} className="px-1 text-muted-foreground transition-opacity hover:text-destructive">
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </span>
+          </SidebarGroup>
+        ))}
+      </nav>
+      <div className="mt-6 border-t border-border pt-4">
+        <Link href="/inbox" className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <Bell className="h-4 w-4" />
+          Inbox
+        </Link>
+        <Link href="/trash" className="mt-2 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <Trash2 className="h-4 w-4" />
+          Trash
+        </Link>
+      </div>
+    </>
+  );
 }

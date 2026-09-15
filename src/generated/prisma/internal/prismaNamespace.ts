@@ -402,7 +402,8 @@ export const ModelName = {
   Document: 'Document',
   Permission: 'Permission',
   ActivityEvent: 'ActivityEvent',
-  VersionSnapshot: 'VersionSnapshot'
+  VersionSnapshot: 'VersionSnapshot',
+  InboxItem: 'InboxItem'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -418,7 +419,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "folder" | "document" | "permission" | "activityEvent" | "versionSnapshot"
+    modelProps: "user" | "folder" | "document" | "permission" | "activityEvent" | "versionSnapshot" | "inboxItem"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -866,6 +867,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    InboxItem: {
+      payload: Prisma.$InboxItemPayload<ExtArgs>
+      fields: Prisma.InboxItemFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.InboxItemFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InboxItemPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.InboxItemFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InboxItemPayload>
+        }
+        findFirst: {
+          args: Prisma.InboxItemFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InboxItemPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.InboxItemFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InboxItemPayload>
+        }
+        findMany: {
+          args: Prisma.InboxItemFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InboxItemPayload>[]
+        }
+        create: {
+          args: Prisma.InboxItemCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InboxItemPayload>
+        }
+        createMany: {
+          args: Prisma.InboxItemCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.InboxItemCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InboxItemPayload>[]
+        }
+        delete: {
+          args: Prisma.InboxItemDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InboxItemPayload>
+        }
+        update: {
+          args: Prisma.InboxItemUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InboxItemPayload>
+        }
+        deleteMany: {
+          args: Prisma.InboxItemDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.InboxItemUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.InboxItemUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InboxItemPayload>[]
+        }
+        upsert: {
+          args: Prisma.InboxItemUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InboxItemPayload>
+        }
+        aggregate: {
+          args: Prisma.InboxItemAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateInboxItem>
+        }
+        groupBy: {
+          args: Prisma.InboxItemGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.InboxItemGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.InboxItemCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.InboxItemCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -988,6 +1063,22 @@ export const VersionSnapshotScalarFieldEnum = {
 } as const
 
 export type VersionSnapshotScalarFieldEnum = (typeof VersionSnapshotScalarFieldEnum)[keyof typeof VersionSnapshotScalarFieldEnum]
+
+
+export const InboxItemScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  type: 'type',
+  documentId: 'documentId',
+  docTitle: 'docTitle',
+  inviterId: 'inviterId',
+  meta: 'meta',
+  readAt: 'readAt',
+  claimedAt: 'claimedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type InboxItemScalarFieldEnum = (typeof InboxItemScalarFieldEnum)[keyof typeof InboxItemScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1298,6 +1389,7 @@ export type GlobalOmitConfig = {
   permission?: Prisma.PermissionOmit
   activityEvent?: Prisma.ActivityEventOmit
   versionSnapshot?: Prisma.VersionSnapshotOmit
+  inboxItem?: Prisma.InboxItemOmit
 }
 
 /* Types for Logging */
