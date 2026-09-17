@@ -138,13 +138,15 @@ export function EditorClient({ documentId }) {
       setProvider(wsProvider);
 
       const displayName =
-        user?.fullName ?? user?.username ?? (isSignedIn ? "You" : "Guest");
+        user?.fullName ?? user?.username ?? (isSignedIn ? null : "Guest");
+      // A signed-in user whose profile hasn't hydrated yet has no name —
+      // send NO user field at all rather than a placeholder, so peers see a
+      // pending cursor (client id) instead of everyone being called "You".
       const userColor = colorFor(user?.id ?? doc?.id);
-      wsProvider.awareness.setLocalStateField("user", {
-        name: displayName,
-        color: userColor,
-      });
-      setSelfUser({ name: displayName, color: userColor });
+      wsProvider.awareness.setLocalStateField("user",
+        displayName ? { name: displayName, color: userColor } : { color: userColor }
+      );
+      setSelfUser({ name: displayName ?? "You", color: userColor });
 
       wsProvider.on("status", ({ status }) => {
         setConnState(

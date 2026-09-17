@@ -38,6 +38,7 @@ describe('Issue 5 — persistence leader lock', () => {
       getDocumentTitle: vi.fn().mockResolvedValue('Test Doc'),
       persistSnapshot: vi.fn(),
       createVersionSnapshot: vi.fn(),
+      getLatestVersionAt: vi.fn().mockResolvedValue(null),
     }));
   });
 

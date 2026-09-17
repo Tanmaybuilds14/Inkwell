@@ -8,10 +8,16 @@ import { ProfileButton } from "@/components/profile-button";
 import { InboxBell } from "@/components/inbox/inbox-bell";
 import { cn } from "@/lib/utils";
 
-export function AppHeader({ title = "Inkwell", actions = null, backHref = null, showThemeToggle = true }) {
+/**
+ * `leftSlot` reserves header space on the left (e.g. the documents page's
+ * mobile hamburger trigger sits fixed at top-left and would otherwise
+ * overlap the feather + wordmark).
+ */
+export function AppHeader({ title = "Inkwell", actions = null, backHref = null, showThemeToggle = true, leftSlot = null }) {
   return (
     <header className="flex h-14 w-full items-center justify-between border-b border-border bg-background px-4 md:px-6">
       <div className="flex items-center gap-3">
+        {leftSlot ? <div className="w-10 md:hidden" aria-hidden="true" /> : null}
         {backHref ? (
           <Link
             href={backHref}

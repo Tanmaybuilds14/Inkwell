@@ -1,18 +1,25 @@
 import { prisma } from '@/lib/prisma';
 import { handle, apiError, json, requireDocument } from '@/lib/api-helpers';
 import { publishToDocument, MESSAGE_KINDS } from '@/lib/redis';
+import { buildRestoreUpdate, applyUpdateToSnapshot } from '@/lib/ydoc-utils';
 import { track, EVENTS } from '@/lib/telemetry';
 import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
 
 /**
  * POST — restore a prior version as the current document state.
  *
- * Order of operations (per architecture doc):
+ * Order of operations:
  *  1. Save the pre-restore current state as a new snapshot first, so the
- *     restore itself is always undoable.
- *  2. Point documents.snapshot at the restored version.
- *  3. Notify any live sync-service rooms via Redis to hot-swap their in-memory
- *     Y.Doc and rebroadcast — connected clients converge without reloading.
+ *     restore itself is always undoable (via version history).
+ *  2. Compute a REVERT DELTA: the CRDT update that transforms the current
+ *     state back into the version's content (delete newer ops + re-insert
+ *     old content). This is what makes restore work on live documents —
+ *     pushing the old full-state snapshot would just merge and change
+ *     nothing (CRDT updates are additive).
+ *  3. Point documents.snapshot at the merged result.
+ *  4. Broadcast the revert delta to any live sync-service rooms so
+ *     connected editors converge immediately; fresh joins load the stored
+ *     snapshot anyway.
  */
 export async function POST(request, { params }) {
   return handle(async () => {
@@ -30,9 +37,14 @@ export async function POST(request, { params }) {
       }),
     ]);
     if (!version) return apiError(404, 'Version not found');
+    if (!doc) return apiError(404, 'Document not found');
 
+    // 2. Revert delta from current -> version.
+    const revertUpdate = await buildRestoreUpdate(doc.snapshot, version.snapshot);
+
+    // 1 + 3. Pre-restore backup, then store the merged (restored) state.
+    const restoredSnapshot = applyUpdateToSnapshot(doc.snapshot, revertUpdate);
     await prisma.$transaction(async (tx) => {
-      // 1. Pre-restore backup of current state.
       if (doc.snapshot && doc.snapshot.length > 0) {
         await tx.versionSnapshot.create({
           data: {
@@ -43,20 +55,20 @@ export async function POST(request, { params }) {
           },
         });
       }
-      // 2. Restore.
       await tx.document.update({
         where: { id },
-        data: { snapshot: version.snapshot },
+        data: { snapshot: restoredSnapshot },
       });
     });
 
-    // 3. Live rooms swap + rebroadcast. If no room is open this is a no-op;
-    //    fresh joins load documents.snapshot anyway.
-    // Cross-reference: sync-service/src/rooms.js checks msg.kind === 'apply-snapshot'
-    await publishToDocument(id, {
-      kind: MESSAGE_KINDS.APPLY_SNAPSHOT,
-      update: Buffer.from(version.snapshot).toString('base64'),
-    });
+    // 4. Live rooms apply the same delta. If no room is open this is a
+    //    harmless no-op publish; fresh joins load documents.snapshot.
+    if (revertUpdate.length > 0) {
+      await publishToDocument(id, {
+        kind: MESSAGE_KINDS.UPDATE,
+        update: Buffer.from(revertUpdate).toString('base64'),
+      });
+    }
 
     track(EVENTS.VERSION_RESTORED, {
       document_id: id,

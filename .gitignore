@@ -41,6 +41,8 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+.freebuff
+scripts
 next-env.d.ts
 .opencode/*
 sync-service/node_modules

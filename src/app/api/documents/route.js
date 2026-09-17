@@ -69,7 +69,7 @@ export async function GET(request) {
         orderBy: { updatedAt: 'desc' },
         take: 100,
       });
-      return json({ documents: docs });
+      return json({ documents: docs.map(withOwnership(user.id)) });
     }
 
     if (scope === 'shared') {
@@ -83,28 +83,45 @@ export async function GET(request) {
         orderBy: { updatedAt: 'desc' },
         take: 200,
       });
-      return json({ documents: docs });
+      return json({ documents: docs.map(withOwnership(user.id)) });
     }
 
+    // Default view. Root lists the user's own root-level documents PLUS
+    // everything shared with them — received documents must be visible
+    // without hunting for the "Shared with me" tab (they are saved on the
+    // receiver's side via Permission rows, but this is where they show up).
+    // A specific folder lists only that folder's owned documents.
     const docs = await prisma.document.findMany({
       where: {
-        ownerId: user.id,
         deletedAt: null,
-        folderId: folderId ?? null,
+        ...(folderId
+          ? { ownerId: user.id, folderId }
+          : {
+              OR: [
+                { ownerId: user.id, folderId: null },
+                { permissions: { some: { userId: user.id } } },
+              ],
+            }),
       },
       select: DOCUMENT_LIST_SELECT,
       orderBy: { updatedAt: 'desc' },
       take: 200,
     });
-    return json({ documents: docs });
+    return json({ documents: docs.map(withOwnership(user.id)) });
   });
 }
 
 const DOCUMENT_LIST_SELECT = {
   id: true,
   title: true,
+  ownerId: true,
   folderId: true,
   updatedAt: true,
   createdAt: true,
   shareEnabled: true,
 } ;
+
+/** Attach isOwner so the UI can hide move/delete controls on received docs. */
+function withOwnership(userId) {
+  return (doc) => ({ ...doc, isOwner: doc.ownerId === userId });
+}

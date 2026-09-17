@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCaret from "@tiptap/extension-collaboration-caret";
+import { AuthorshipUnderlines } from "@/components/editor/authorship";
 import {
   Bold,
   Italic,
@@ -51,8 +52,12 @@ export function CollabEditor({ documentId, ydoc, provider, role }) {
               Collaboration.configure({ document: ydoc }),
               CollaborationCaret.configure({
                 provider,
-                user: provider?.awareness?.getLocalState()?.user ?? { name: "You", color: "#44403c" },
+                // The provider already set the local user (see editor-client).
+                // If the profile hasn't hydrated yet, keep just a color — no
+                // placeholder name that would broadcast "You" to peers.
+                user: provider?.awareness?.getLocalState()?.user ?? { color: "#44403c" },
               }),
+              AuthorshipUnderlines.configure({ awareness: provider?.awareness }),
             ]
           : []),
       ],

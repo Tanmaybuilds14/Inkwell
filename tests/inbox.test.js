@@ -98,6 +98,19 @@ vi.mock('../src/lib/prisma', () => ({
         return { count: before - prismaState.items.length };
       }),
     },
+    // Used by claimSharedLink / acceptInboxItem to save the document on the
+    // receiver's side (Permission row). Default: no existing row, document
+    // exists and is not owned by the caller.
+    permission: {
+      findFirst: vi.fn(async () => null),
+      create: vi.fn(async ({ data }) => ({ id: `perm_${++idCounter}`, ...data })),
+      findMany: vi.fn(async () => []),
+    },
+    document: {
+      findFirst: vi.fn(async ({ where }) =>
+        where?.ownerId?.not ? { id: where.id, ownerId: where.ownerId.not === 'u9' ? 'u1' : 'u9' } : { id: where?.id, ownerId: 'u9' }
+      ),
+    },
   },
 }));
 
@@ -129,6 +142,16 @@ beforeEach(() => {
   prismaState.items = [];
   currentUser = null;
   vi.clearAllMocks();
+  // Tests that stub prisma.permission (recordLinkShared) replace it
+  // wholesale with partial stubs — restore the full default stand-in used
+  // by claimSharedLink and acceptInboxItem: no existing row, document
+  // exists, not owned by the caller.
+  prisma.permission = {
+    findFirst: vi.fn(async () => null),
+    create: vi.fn(async ({ data }) => ({ id: `perm_${++idCounter}`, ...data })),
+    findMany: vi.fn(async () => []),
+  };
+  prisma.document.findFirst = vi.fn(async () => ({ id: 'd1', ownerId: 'u9' }));
 });
 
 describe('recordInvite', () => {

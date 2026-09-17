@@ -50,6 +50,7 @@ describe('sync-service edit permission gating', () => {
       getDocumentTitle: vi.fn().mockResolvedValue('Test Doc'),
       persistSnapshot: vi.fn(),
       createVersionSnapshot: vi.fn(),
+      getLatestVersionAt: vi.fn().mockResolvedValue(null),
     }));
   });
 

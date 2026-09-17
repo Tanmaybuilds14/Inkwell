@@ -311,32 +311,40 @@ export function Dashboard() {
                     <span className="text-xs text-muted-foreground">
                       {new Date(doc.updatedAt).toLocaleString()}
                     </span>
-                    <Select
-                      value={doc.folderId ?? ROOT_FOLDER_VALUE}
-                      onValueChange={(val) =>
-                        moveDoc(doc, val === ROOT_FOLDER_VALUE ? null : val)
-                      }
-                    >
-                      <SelectTrigger className="w-[120px] text-xs opacity-0 group-hover:opacity-100">
-                        <SelectValue placeholder="Move to…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={ROOT_FOLDER_VALUE}>(root)</SelectItem>
-                        {(folders ?? []).map((f) => (
-                          <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {scope === "owned" ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive opacity-0 group-hover:opacity-100"
-                        onClick={() => deleteDoc(doc)}
-                      >
-                        Delete
-                      </Button>
-                    ) : null}
+                    {doc.isOwner === false ? (
+                      // Received document (shared by email or link): no move/
+                      // delete controls — just a role badge.
+                      <Badge variant="outline">shared with you</Badge>
+                    ) : (
+                      <>
+                        <Select
+                          value={doc.folderId ?? ROOT_FOLDER_VALUE}
+                          onValueChange={(val) =>
+                            moveDoc(doc, val === ROOT_FOLDER_VALUE ? null : val)
+                          }
+                        >
+                          <SelectTrigger className="w-[120px] text-xs opacity-0 group-hover:opacity-100">
+                            <SelectValue placeholder="Move to…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={ROOT_FOLDER_VALUE}>(root)</SelectItem>
+                            {(folders ?? []).map((f) => (
+                              <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {scope === "owned" ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive opacity-0 group-hover:opacity-100"
+                            onClick={() => deleteDoc(doc)}
+                          >
+                            Delete
+                          </Button>
+                        ) : null}
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>

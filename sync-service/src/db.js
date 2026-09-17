@@ -93,6 +93,18 @@ export async function createVersionSnapshot({ docId, snapshot, title }) {
   );
 }
 
+/** Timestamp of the newest version snapshot for a document (null if none). */
+export async function getLatestVersionAt(docId) {
+  const { rows } = await pool.query(
+    `SELECT "createdAt" FROM "VersionSnapshot"
+      WHERE "documentId" = $1
+      ORDER BY "createdAt" DESC
+      LIMIT 1`,
+    [docId]
+  );
+  return rows[0]?.createdAt ?? null;
+}
+
 /**
  * Write user-facing audit rows. The ActivityEvent table may not exist yet on
  * databases that predate the profile/audit feature, so the table is created

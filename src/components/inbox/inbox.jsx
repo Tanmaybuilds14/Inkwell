@@ -8,6 +8,7 @@ import {
   Link2,
   Mail,
   CheckCheck,
+  Check,
   Trash2,
   ChevronDown,
   Loader2,
@@ -41,6 +42,7 @@ export function Inbox() {
   const [error, setError] = useState(null);
   const [nextCursor, setNextCursor] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [acceptingId, setAcceptingId] = useState(null);
 
   const load = useCallback((cursor) => {
     const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
@@ -114,6 +116,30 @@ export function Inbox() {
     }
   }
 
+  async function accept(id) {
+    setAcceptingId(id);
+    try {
+      const data = await api("/api/inbox/accept", {
+        method: "POST",
+        body: JSON.stringify({ id }),
+      });
+      setItems((list) =>
+        (list ?? []).map((it) =>
+          it.id === id
+            ? { ...it, meta: data.item.meta, readAt: data.item.readAt ?? it.readAt }
+            : it
+        )
+      );
+      setUnread((u) => Math.max(0, u - 1));
+      toast({ title: "Invitation accepted", description: "The document is now in your documents.", variant: "success" });
+      window.dispatchEvent(new Event("inkwell:inbox-updated"));
+    } catch (err) {
+      toast({ title: "Couldn't accept", description: err.message, variant: "destructive" });
+    } finally {
+      setAcceptingId(null);
+    }
+  }
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <AppHeader backHref="/documents" />
@@ -167,6 +193,8 @@ export function Inbox() {
                 <InboxRow
                   key={item.id}
                   item={item}
+                  accepting={acceptingId === item.id}
+                  onAccept={() => accept(item.id)}
                   onOpen={() => markRead([item.id])}
                   onRemove={() => remove(item.id)}
                 />
@@ -188,13 +216,16 @@ export function Inbox() {
   );
 }
 
-function InboxRow({ item, onOpen, onRemove }) {
+function InboxRow({ item, accepting, onAccept, onOpen, onRemove }) {
   const meta = TYPE_META[item.type] ?? TYPE_META.link_opened;
   const Icon = meta.icon;
   const inviterName = item.inviter?.name ?? item.inviter?.email ?? null;
   const role = roleLabel(item.meta);
   const when = new Date(item.createdAt);
   const unread = !item.readAt;
+  const accepted = !!item.meta?.acceptedAt;
+  const acceptable =
+    (item.type === "invite" || item.type === "link_opened") && item.documentId;
 
   const title =
     item.type === "invite"
@@ -247,6 +278,18 @@ function InboxRow({ item, onOpen, onRemove }) {
       </time>
 
       <div className="flex shrink-0 items-center gap-1">
+        {acceptable && !accepted ? (
+          <Button size="sm" onClick={onAccept} disabled={accepting}>
+            {accepting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+            Accept
+          </Button>
+        ) : null}
+        {accepted ? (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Check className="h-3.5 w-3.5 text-emerald-600" />
+            Accepted
+          </span>
+        ) : null}
         {href ? (
           <Button variant="outline" size="sm" asChild onClick={onOpen}>
             <Link href={href}>Open</Link>

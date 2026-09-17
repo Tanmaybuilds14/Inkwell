@@ -41,11 +41,15 @@ export async function GET(request, { params }) {
       // the ?share= token is gone from the URL. Guests can't be saved (no
       // user row), which is the documented limit of link sharing.
       if (shareToken) {
+        // Also saves a Permission row so the document lands in the
+        // receiver's dashboard under "Shared with me" — the inbox receipt
+        // alone isn't listed by /api/documents?scope=shared.
         await claimSharedLink({
           userId: user.id,
           documentId: id,
           docTitle: full.title,
           ownerId: full.ownerId,
+          role: full.shareRole,
         });
       }
     }

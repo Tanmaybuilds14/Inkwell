@@ -11,6 +11,7 @@ import {
   getDocumentOwnerId,
   persistSnapshot,
   createVersionSnapshot,
+  getLatestVersionAt,
   logActivityEvents,
 } from './db.js';
 import { subscribeToDocument, publishMessage, MESSAGE_KINDS } from './broadcast.js';
@@ -119,7 +120,10 @@ export class Room {
     /** @type {Map<WebSocket, { role: string, identity: object }>} */
     this.conns = new Map();
     this.dirty = false;
-    this.lastVersionAt = Date.now();
+    // 0 = unknown — maybeCreateVersion() resolves it from the DB on first
+    // use, so version cadence is based on the document's last stored version
+    // rather than this room's creation time.
+    this.lastVersionAt = 0;
     this.lastActivityAt = Date.now();
 
     // ----- Doc update handler -----
@@ -170,6 +174,11 @@ export class Room {
   /* ---------------- connections ---------------- */
 
   join(ws, meta) {
+    // clientIds: the Yjs clientIDs this connection owns (learned from its
+    // awareness messages). Presence states are keyed by clientID, NOT by
+    // user id, so leave() needs this to clean up precisely — and multiple
+    // tabs of the same user each get their own cursor.
+    meta.clientIds = new Set();
     this.conns.set(ws, meta);
     this.touch();
 
@@ -190,15 +199,46 @@ export class Room {
     ws.on('error', () => this.leave(ws));
   }
 
+  /**
+   * Record which awareness clientIDs a connection owns by decoding its
+   * awareness updates (format mirrors encodeAwarenessUpdate: [len, then
+   * (clientID, clock, JSON state)...]). Entries with a null state are
+   * removals, not ownership. Without this bookkeeping a departing client's
+   * cursor would linger on every other screen until the 30s outdated-timeout.
+   */
+  trackAwarenessClients(ws, update) {
+    const meta = this.conns.get(ws);
+    if (!meta) return;
+    try {
+      const dec = decoding.createDecoder(update);
+      const len = decoding.readVarUint(dec);
+      for (let i = 0; i < len; i++) {
+        const clientID = decoding.readVarUint(dec);
+        decoding.readVarUint(dec); // clock
+        const state = decoding.readVarString(dec);
+        if (state === 'null') meta.clientIds.delete(clientID);
+        else meta.clientIds.add(clientID);
+      }
+    } catch {
+      /* malformed payload — handleMessage already rejected it */
+    }
+  }
+
   leave(ws) {
     const meta = this.conns.get(ws);
     if (!meta) return;
     this.conns.delete(ws);
     this.touch();
-    if (meta.identity?.userId) {
+    // Remove THIS connection's presence states (keyed by Yjs clientID) and
+    // broadcast the removal so every other client drops the departed user's
+    // cursor + name label immediately instead of after the 30s timeout.
+    const ids = [...(meta.clientIds ?? [])].filter((id) =>
+      this.awareness.getStates().has(id)
+    );
+    if (ids.length > 0) {
       const removed = awarenessProtocol.removeAwarenessStates(
         this.awareness,
-        [meta.identity.userId],
+        ids,
         null
       );
       if (removed?.length > 0) {
@@ -249,6 +289,7 @@ export class Room {
       if (outerType === MESSAGE_AWARENESS) {
         const aw = decoding.readVarUint8Array(probe);
         awarenessProtocol.applyAwarenessUpdate(this.awareness, aw, ws);
+        this.trackAwarenessClients(ws, aw);
         // Forward the raw framed message to other clients (already has outer type).
         this.broadcastBuffer(buf, ws);
         publishMessage(this.docId, 'awareness', {
@@ -343,6 +384,39 @@ export class Room {
     await this._persistLocked();
   }
 
+  /**
+   * Version a snapshot if enough time has passed since the document's last
+   * version — measured against the GLOBAL last version time (DB), not just
+   * this room's lifetime.
+   *
+   * The old room-local check meant a document edited in short bursts (the
+   * common case: open, tweak, close) never accumulated 5 minutes of
+   * continuous room uptime and NEVER got a version snapshot. Consulting the
+   * DB makes cadence survive room restarts; the in-memory cache just avoids
+   * re-querying on every persist tick.
+   */
+  async maybeCreateVersion(snapshot, title) {
+    const now = Date.now();
+    if (this.lastVersionAt && now - this.lastVersionAt < VERSION_INTERVAL_MS) return;
+    if (!this.lastVersionAt) {
+      const last = await getLatestVersionAt(this.docId);
+      this.lastVersionAt = last ? new Date(last).getTime() : 0;
+      if (now - this.lastVersionAt < VERSION_INTERVAL_MS) return;
+    }
+    this.lastVersionAt = now;
+    await createVersionSnapshot({
+      docId: this.docId,
+      snapshot,
+      title,
+    });
+    // Attribution for auto-snapshots is room-wide; log it for the owner
+    // so the profile's "versions" tile stays meaningful.
+    const ownerId = await getDocumentOwnerId(this.docId);
+    if (ownerId) {
+      await logActivityEvents([{ id: `act_${randomUUID()}`, userId: ownerId, type: 'version_created', documentId: this.docId, docTitle: title }]);
+    }
+  }
+
   async _persistLocked() {
     this.dirty = false;
 
@@ -375,20 +449,7 @@ export class Room {
         );
       }
 
-      if (now - this.lastVersionAt >= VERSION_INTERVAL_MS) {
-        this.lastVersionAt = now;
-        await createVersionSnapshot({
-          docId: this.docId,
-          snapshot,
-          title,
-        });
-        // Attribution for auto-snapshots is room-wide; log it for the owner
-        // so the profile's "versions" tile stays meaningful.
-        const ownerId = await getDocumentOwnerId(this.docId);
-        if (ownerId) {
-          await logActivityEvents([{ id: `act_${randomUUID()}`, userId: ownerId, type: 'version_created', documentId: this.docId, docTitle: title }]);
-        }
-      }
+      await this.maybeCreateVersion(snapshot, title);
     } catch (err) {
       this.dirty = true;
       console.error(`[room ${this.docId}] snapshot save failed:`, err.message);
