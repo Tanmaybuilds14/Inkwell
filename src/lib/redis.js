@@ -1,22 +1,9 @@
 import Redis from 'ioredis';
+import { docChannel } from '../../shared/protocol.js';
 
-/**
- * Message-kind constants shared (by value) with sync-service/src/broadcast.js.
- * Both deployables cannot share a literal module, so the string values must
- * stay identical — cross-reference: sync-service/src/broadcast.js
- */
-export const MESSAGE_KINDS = {
-  UPDATE: 'update',
-  AWARENESS: 'awareness',
-  APPLY_SNAPSHOT: 'apply-snapshot',
-};
-
-/**
- * Publisher connection used by Next.js API routes to reach live sync-service
- * rooms (e.g. version restores). Channels are namespaced per document ID so
- * messages can never leak across documents.
- */
-export const docChannel = (documentId) => `inkwell:doc:${documentId}`;
+// Channel naming and message kinds are shared verbatim with the sync service
+// so a version restore published here is recognised there. See shared/protocol.js.
+export { MESSAGE_KINDS, docChannel } from '../../shared/protocol.js';
 
 let publisher = null;
 
@@ -35,6 +22,11 @@ export function getPublisher() {
   return publisher;
 }
 
+/**
+ * Publisher connection used by Next.js API routes to reach live sync-service
+ * rooms (e.g. version restores). Channels are namespaced per document ID so
+ * messages can never leak across documents.
+ */
 export async function publishToDocument(documentId, message) {
   const pub = getPublisher();
   if (!pub) return false;

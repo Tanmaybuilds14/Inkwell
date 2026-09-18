@@ -10,10 +10,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const state = { doc: null, dbUser: null, roleFromDb: null };
 
-// auth.js resolves @clerk/backend from sync-service/node_modules (its own
-// install), so mock THAT specifier — the bare specifier only intercepts the
-// root copy (same dual-install pitfall as the ioredis mocks).
-vi.mock('../sync-service/node_modules/@clerk/backend', () => ({
+// The sync service has its own @clerk/backend dependency, so this repo can
+// hold two physical copies of the package. vitest.config.mjs pins the
+// specifier to a single copy, which is what makes this bare-specifier mock
+// actually intercept the import inside auth.js. Mocking the nested
+// node_modules path instead silently misses and the real verifyToken runs —
+// it then rejects the fake 'jwt' below and every signed-in case fails with
+// 4001. (Verified: that was the exact cause of this suite failing.)
+vi.mock('@clerk/backend', () => ({
   verifyToken: vi.fn(async () => ({ sub: 'clerk_1' })),
 }));
 vi.mock('../sync-service/src/db.js', () => ({

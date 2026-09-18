@@ -16,8 +16,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+// The wire contract lives outside src/ so the sync service can import the same
+// file; the close codes below are its values, not copies of them.
+import { WS_CLOSE_CODES } from "../../../shared/protocol.js";
 
 const SYNC_WS_URL = process.env.NEXT_PUBLIC_SYNC_WS_URL ?? "ws://localhost:1234";
+
+/**
+ * Wait before retrying a connection the service throttled. The limiter's
+ * window is a minute, so this is a first step rather than a guarantee — a
+ * still-throttled retry is simply throttled again.
+ */
+const THROTTLE_RETRY_MS = 5_000;
 
 const PRESENCE_COLORS = [
   "#0ea5e9", "#8b5cf6", "#ec4899", "#f59e0b",
@@ -102,6 +112,10 @@ export function EditorClient({ documentId }) {
         getToken()
           .then(finish)
           .catch(() => finish(null));
+      } else if (mode === "backoff") {
+        // `finish` re-checks the generation, so a terminal close during the
+        // wait still wins over this pending retry.
+        setTimeout(() => finish(null), THROTTLE_RETRY_MS);
       } else {
         finish(null);
       }
@@ -169,15 +183,25 @@ export function EditorClient({ documentId }) {
 
       // Close codes 4400-4499 are the sync service's terminal verdict: it
       // completes the upgrade handshake and immediately closes with one of
-      //   4400 — token expired  → refresh the token and reconnect
-      //   4401 — invalid token  → stop
-      //   4403 — no access      → stop
-      //   4404 — doc not found  → stop
-      // (y-websocket's own loop already treats 4400-4499 as non-reconnectable.)
+      //   TOKEN_EXPIRED → refresh the token and reconnect
+      //   RATE_LIMITED  → wait out the throttle window and reconnect
+      //   INVALID_TOKEN / NO_ACCESS / NOT_FOUND → stop and explain
+      // (y-websocket's own loop already treats 4400-4499 as non-reconnectable,
+      // so anything retryable has to be retried here.)
       const onClosed = ({ code }) => {
         if (disposedRef.current) return;
-        if (code === 4400) {
+        if (code === WS_CLOSE_CODES.TOKEN_EXPIRED) {
           scheduleReconnect("refresh");
+          return;
+        }
+        // Throttled rather than rejected: retry instead of stranding the user
+        // on an error until they think to reload the page. 44xx is
+        // non-reconnectable as far as y-websocket is concerned, so this branch
+        // is the only thing that keeps a busy collaborator from being locked
+        // out permanently.
+        if (code === WS_CLOSE_CODES.RATE_LIMITED) {
+          setTerminalError("Too many connection attempts — reconnecting in a few seconds…");
+          scheduleReconnect("backoff");
           return;
         }
         // Cancel any reconnect the 'disconnected' status started, then stop.
@@ -187,9 +211,9 @@ export function EditorClient({ documentId }) {
         setProvider(null);
         setConnState("disconnected");
         setTerminalError(
-          code === 4403
+          code === WS_CLOSE_CODES.NO_ACCESS
             ? "You no longer have access to this document."
-            : code === 4404
+            : code === WS_CLOSE_CODES.NOT_FOUND
               ? "This document no longer exists."
               : "Your session could not be authenticated. Refresh the page to sign in again."
         );

@@ -3,11 +3,18 @@ import { getCurrentUser } from '@/lib/auth';
 import { handle, apiError, json } from '@/lib/api-helpers';
 import { track, EVENTS } from '@/lib/telemetry';
 import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
+import { throttleWrite, RATE_LIMITS } from '@/lib/rate-limit';
 
 export async function POST(request) {
   return handle(async () => {
     const user = await getCurrentUser();
     if (!user) return apiError(401, 'Sign in required');
+
+    // Creating documents is cheap for a client and expensive for the database;
+    // cap it per user over a long window. Nothing else in this route needs a
+    // limiter — GET is idempotent and already scoped to the caller's own docs.
+    const limited = await throttleWrite(user.id, RATE_LIMITS.DOC_CREATE, 'doc-create');
+    if (limited) return limited;
 
     const body = await request.json().catch(() => ({}));
     const folderId = typeof body.folderId === 'string' && body.folderId ? body.folderId : null;

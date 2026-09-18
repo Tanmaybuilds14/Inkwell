@@ -7,15 +7,18 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Import message kind constants from both sides of the wire.
-// In production these live in separate deployables, but in tests we can
-// import both to verify they stay in sync.
+// Import message kind constants from both sides of the wire. The two
+// deployables previously carried independent copies of these values with
+// "keep in sync" comments; they now both re-export shared/protocol.js, and
+// the identity assertion below is what keeps a private copy from creeping
+// back in (toEqual would still pass for a duplicate that happened to match).
 import { MESSAGE_KINDS as PUBLISH_KINDS } from '../src/lib/redis.js';
 import { MESSAGE_KINDS as CONSUME_KINDS } from '../sync-service/src/broadcast.js';
 
 describe('Issue 1 — version restore hot-swap contract', () => {
-  it('MESSAGE_KINDS constants match across publish and consume sides', () => {
-    expect(PUBLISH_KINDS).toEqual(CONSUME_KINDS);
+  it('both sides re-export one shared MESSAGE_KINDS object', () => {
+    expect(PUBLISH_KINDS).toBe(CONSUME_KINDS);
+    expect(PUBLISH_KINDS).toEqual({ UPDATE: 'update', AWARENESS: 'awareness', APPLY_SNAPSHOT: 'apply-snapshot' });
   });
 
   it('publish-side payload shape is recognized by the consume-side handler', () => {

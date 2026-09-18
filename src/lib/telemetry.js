@@ -1,6 +1,11 @@
+import { addTelemetryBreadcrumb } from '@/lib/error-reporting';
+
 /**
- * Telemetry event names from the PRD. In dev these log to stdout; wire a real
- * sink (Axiom, PostHog, Sentry breadcrumbs) behind this single function later.
+ * Telemetry event names from the PRD.
+ *
+ * Events always go to stdout as structured lines. When Sentry is configured
+ * they are ALSO attached to the current request as breadcrumbs, so a failure
+ * report shows the user's path to it instead of just the final throw.
  */
 export const EVENTS = {
   DOC_CREATED: 'doc_created',
@@ -26,4 +31,6 @@ export function track(event, payload = {}) {
   if (process.env.NODE_ENV !== 'test') {
     console.log(`[telemetry] ${line}`);
   }
+  // No-ops (and skips loading the SDK) when no DSN is configured.
+  addTelemetryBreadcrumb(event, payload);
 }

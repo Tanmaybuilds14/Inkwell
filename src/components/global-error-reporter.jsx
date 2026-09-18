@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { reportError } from "@/lib/error-reporting";
 
 /**
  * Global client-side error catcher mounted once in the root layout.
@@ -12,26 +13,23 @@ import { useEffect } from "react";
  *     reporting hooks (React 19 reports recoverable errors through
  *     onUncaughtError / onCaughtError on the root — see below).
  *
- * Currently reports to the console with a stable prefix (searchable in
- * browser devtools and log aggregators); swap in Sentry or a /api/telemetry
- * endpoint without touching call sites.
+ * Reports through lib/error-reporting: the console always (stable `[error]`
+ * prefix + scope, searchable in devtools and log aggregators) and Sentry when
+ * a public DSN is configured.
  */
 export function GlobalErrorReporter() {
   useEffect(() => {
     const onUnhandledRejection = (event) => {
       // Next.js/React already surface chunk-load and hydration failures;
-      // log them here so they land in one place.
-      console.error(
-        "[global-error] Unhandled promise rejection:",
-        event.reason
-      );
+      // report them here so they land in one place.
+      reportError(event.reason, { scope: "global-error/unhandled-rejection" });
     };
 
     const onError = (event) => {
       // Resource-load errors (images, scripts) arrive here too but with no
       // error object — skip them to avoid noise.
       if (!event.error && event.target && event.target !== window) return;
-      console.error("[global-error] Uncaught error:", event.error ?? event.message);
+      reportError(event.error ?? event.message, { scope: "global-error/uncaught" });
     };
 
     window.addEventListener("unhandledrejection", onUnhandledRejection);

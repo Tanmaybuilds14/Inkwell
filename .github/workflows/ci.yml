@@ -6,18 +6,38 @@ on:
   pull_request:
     branches: [main]
 
+# Values CI needs to build and boot the app. Secrets are never available to a
+# pull request from a fork, so these are placeholders — and deliberately
+# FORMAT-VALID ones: ClerkProvider rejects a malformed publishable key while
+# rendering, which would fail the build for a reason that has nothing to do
+# with the code under review. The publishable key below is base64 of
+# "clerk.example.com$", the conventional throwaway.
+env:
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+  CLERK_SECRET_KEY: sk_test_ci_placeholder_not_a_real_secret
+  NEXT_PUBLIC_SYNC_WS_URL: ws://localhost:1234
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  NEXT_TELEMETRY_DISABLED: "1"
+
 jobs:
-  test:
+  verify:
+    name: Lint, unit tests, build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Pinned to the same major as the Docker images (node:24-alpine) so CI
+      # cannot pass on a runtime the deployable never uses.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - run: npm ci --legacy-peer-deps
+      # The sync service has its own package.json and node_modules; the suite
+      # imports across that boundary, so it must be installed for those
+      # imports to resolve the same way they do locally.
+      - run: npm ci --prefix sync-service
       - run: npx prisma generate
-      - name: Run tests
+      - name: Unit tests
         run: npx vitest run 2>&1 | tee test-output.txt
       - name: Guard against zero test files
         run: |
@@ -27,3 +47,50 @@ jobs:
           fi
       - name: Lint
         run: npm run lint
+      - name: Build
+        run: npm run build
+
+  e2e:
+    name: End-to-end (Chromium)
+    runs-on: ubuntu-latest
+    # The 404-not-403 contract is only meaningful against a real database, so
+    # the E2E job gets a throwaway Postgres and the migrations.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: inkwell
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/inkwell?schema=public
+      # Playwright boots this instead of `next dev`: no per-route compilation
+      # on first hit, so timings reflect the real request path.
+      E2E_SERVER_CMD: npx next start -p 3100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: End-to-end tests
+        run: npx playwright test
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

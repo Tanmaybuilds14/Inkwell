@@ -1,17 +1,19 @@
 import Redis from 'ioredis';
 import { applyUpdate, encodeStateAsUpdate } from 'yjs';
 import { warnRateLimited } from './log.js';
+import { MESSAGE_KINDS, docChannel } from '../../shared/protocol.js';
+
+// Message kinds and channel naming are the shared wire contract with the
+// Next.js publisher — see shared/protocol.js. Re-exported here because
+// rooms.js and the tests import them from this module.
+export { MESSAGE_KINDS } from '../../shared/protocol.js';
 
 /**
- * Message-kind constants shared (by value) with src/lib/redis.js.
- * Both deployables cannot share a literal module, so the string values must
- * stay identical — cross-reference: src/lib/redis.js
+ * Publishing an unrecognised kind used to be a silent no-op on every peer —
+ * exactly the class of bug the old "keep these copies in sync" comments were
+ * papering over. Assert the kind instead.
  */
-export const MESSAGE_KINDS = {
-  UPDATE: 'update',
-  AWARENESS: 'awareness',
-  APPLY_SNAPSHOT: 'apply-snapshot',
-};
+const KNOWN_KINDS = new Set(Object.values(MESSAGE_KINDS));
 
 /**
  * Redis pub/sub relay — lets every sync-service instance share one logical
@@ -23,8 +25,6 @@ export const MESSAGE_KINDS = {
  *         'apply-snapshot' → version restore hot-swap
  */
 const INSTANCE_ID = `inst-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
-
-export const channelFor = (docId) => `inkwell:doc:${docId}`;
 
 let sub = null;
 let pub = null;
@@ -82,7 +82,7 @@ function getPub() {
  * is invoked for every remote message (own messages are filtered by origin).
  */
 export function subscribeToDocument(docId, onMessage) {
-  const channel = channelFor(docId);
+  const channel = docChannel(docId);
   const s = getSub();
   const handler = (ch, raw) => {
     if (ch !== channel) return;
@@ -115,9 +115,13 @@ export function subscribeToDocument(docId, onMessage) {
  * down during a Redis outage. Failures are logged (rate-limited) instead.
  */
 export function publishMessage(docId, kind, payload) {
+  if (!KNOWN_KINDS.has(kind)) {
+    warnRateLimited('publish-kind', `[redis] refusing to publish unknown kind "${kind}"`);
+    return Promise.resolve();
+  }
   return getPub()
     .publish(
-      channelFor(docId),
+      docChannel(docId),
       JSON.stringify({ origin: INSTANCE_ID, docId, kind, ...payload })
     )
     .catch((err) =>

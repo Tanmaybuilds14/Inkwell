@@ -1,4 +1,8 @@
 import { resolveDocumentRole, hasRole } from '@/lib/permissions';
+import { throttleShareLinkAttempt, throttleWrite } from '@/lib/rate-limit';
+
+/** Methods that change state and therefore get the per-user write budget. */
+const WRITE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
 export function json(data, init = {}) {
   return Response.json(data, init);
@@ -19,6 +23,20 @@ export async function requireDocument(request, documentId, requiredRole, { allow
 
   const url = new URL(request.url);
   const shareToken = allowShareToken ? url.searchParams.get('share') : null;
+
+  // Throttle BEFORE resolving the role: a share token is a bearer credential,
+  // so every unbounded attempt is an unbounded guess at the secret, and each
+  // one costs a database round trip. This is the single gate every
+  // document-scoped route passes through, so it can't be forgotten on a new
+  // endpoint the way a per-route check would be.
+  if (shareToken) {
+    const limited = await throttleShareLinkAttempt(request, documentId);
+    if (limited) throw limited;
+  }
+  if (user && WRITE_METHODS.has(request.method)) {
+    const limited = await throttleWrite(user.id);
+    if (limited) throw limited;
+  }
 
   const { role, document } = await resolveDocumentRole(documentId, user?.id ?? null, { shareToken, allowTrashed });
 

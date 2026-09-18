@@ -1,64 +1,21 @@
-import crypto from 'node:crypto';
 import { prisma } from '@/lib/prisma';
+import { ROLES } from '../../shared/roles.js';
+import { timingSafeEqual } from '../../shared/timing-safe.js';
 
-/**
- * Timing-safe string comparison to prevent timing attacks on bearer tokens
- * (share tokens). Falls back to false on length mismatch without throwing.
- * Cross-reference: sync-service/src/auth.js has the equivalent function.
- */
-export function timingSafeEqual(a, b) {
-  if (typeof a !== 'string' || typeof b !== 'string') return false;
-  if (a.length !== b.length) return false;
-  const bufA = Buffer.from(a, 'utf8');
-  const bufB = Buffer.from(b, 'utf8');
-  return crypto.timingSafeEqual(bufA, bufB);
-}
-
-export const ROLES = {
-  OWNER: 'OWNER',
-  EDITOR: 'EDITOR',
-  COMMENTER: 'COMMENTER',
-  VIEWER: 'VIEWER',
-};
-
-const ROLE_RANK = {
-  OWNER: 4,
-  EDITOR: 3,
-  COMMENTER: 2,
-  VIEWER: 1,
-};
-
-/**
- * Role hierarchy check. OWNER > EDITOR > COMMENTER > VIEWER.
- * A role satisfies `required` when its rank is >= the required rank.
- */
-export function hasRole(actualRole, requiredRole) {
-  if (!actualRole || !requiredRole) return false;
-  const actual = ROLE_RANK[actualRole];
-  const required = ROLE_RANK[requiredRole];
-  if (!actual || !required) return false;
-  return actual >= required;
-}
-
-/** Roles that may modify document content. */
-export function canEdit(role) {
-  return hasRole(role, 'EDITOR');
-}
-
-/** Roles that may read document content/metadata. */
-export function canView(role) {
-  return hasRole(role, 'VIEWER');
-}
-
-/** Only owners manage sharing, deletion and permissions. */
-export function canManage(role) {
-  return role === 'OWNER';
-}
-
-/** Commenter+ roles may add comments (v2 surface, enforced server-side already). */
-export function canComment(role) {
-  return hasRole(role, 'COMMENTER');
-}
+// The role hierarchy and the token comparison are shared verbatim with the
+// sync service's WebSocket handshake so the two can never disagree about who
+// may edit. Re-exported here because this is the module the API layer and the
+// tests have always imported them from.
+export {
+  ROLES,
+  ROLE_RANK,
+  hasRole,
+  canEdit,
+  canView,
+  canManage,
+  canComment,
+} from '../../shared/roles.js';
+export { timingSafeEqual } from '../../shared/timing-safe.js';
 
 /**
  * Resolve a user's effective role for a document.
@@ -94,7 +51,7 @@ export async function resolveDocumentRole(documentId, userId, { shareToken = nul
     return { role: null, document: doc };
   }
 
-  if (userId && doc.ownerId === userId) return { role: 'OWNER', document: doc };
+  if (userId && doc.ownerId === userId) return { role: ROLES.OWNER, document: doc };
   if (userId && doc.permissions.length > 0) {
     return { role: doc.permissions[0].role, document: doc };
   }

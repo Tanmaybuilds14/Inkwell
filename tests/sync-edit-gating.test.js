@@ -39,10 +39,10 @@ describe('sync-service edit permission gating', () => {
       return { default: MockRedis };
     });
 
-    vi.doMock('../sync-service/src/broadcast.js', () => ({
+    vi.doMock('../sync-service/src/broadcast.js', async () => ({
       subscribeToDocument: vi.fn().mockReturnValue(vi.fn()),
       publishMessage: vi.fn(),
-      MESSAGE_KINDS: { UPDATE: 'update', AWARENESS: 'awareness', APPLY_SNAPSHOT: 'apply-snapshot' },
+      MESSAGE_KINDS: (await import('../shared/protocol.js')).MESSAGE_KINDS,
     }));
 
     vi.doMock('../sync-service/src/db.js', () => ({

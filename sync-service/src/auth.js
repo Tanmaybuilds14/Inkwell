@@ -1,23 +1,12 @@
-import crypto from 'node:crypto';
 import { verifyToken } from '@clerk/backend';
 import {
   getDocumentForAuth,
   getUserByClerkId,
   getUserRoleForDocument,
 } from './db.js';
-
-/**
- * Timing-safe string comparison to prevent timing attacks on bearer tokens
- * (share tokens). Falls back to false on length mismatch without throwing.
- * Cross-reference: src/lib/permissions.js has the equivalent function.
- */
-function timingSafeEqual(a, b) {
-  if (typeof a !== 'string' || typeof b !== 'string') return false;
-  if (a.length !== b.length) return false;
-  const bufA = Buffer.from(a, 'utf8');
-  const bufB = Buffer.from(b, 'utf8');
-  return crypto.timingSafeEqual(bufA, bufB);
-}
+import { AUTH_CODES } from '../../shared/protocol.js';
+import { ROLES } from '../../shared/roles.js';
+import { timingSafeEqual } from '../../shared/timing-safe.js';
 
 const GUEST_NAMES = ['Guest Wren', 'Guest Finch', 'Guest Heron', 'Guest Swift', 'Guest Lark'];
 
@@ -30,10 +19,12 @@ const GUEST_NAMES = ['Guest Wren', 'Guest Finch', 'Guest Heron', 'Guest Swift', 
  * Fail-closed: any error denies access.
  */
 export async function authenticateHandshake({ docId, token, shareToken }) {
-  if (!docId) return { ok: false, code: 4001, reason: 'docId is required' };
+  if (!docId) return { ok: false, code: AUTH_CODES.INVALID, reason: 'docId is required' };
 
   const doc = await getDocumentForAuth(docId);
-  if (!doc || doc.deletedAt) return { ok: false, code: 4004, reason: 'Document not found' };
+  if (!doc || doc.deletedAt) {
+    return { ok: false, code: AUTH_CODES.NOT_FOUND, reason: 'Document not found' };
+  }
 
   // Path 1: signed-in user.
   if (token) {
@@ -42,10 +33,10 @@ export async function authenticateHandshake({ docId, token, shareToken }) {
         secretKey: process.env.CLERK_SECRET_KEY,
       });
       const user = await getUserByClerkId(claims.sub);
-      if (!user) return { ok: false, code: 4003, reason: 'Unknown user' };
+      if (!user) return { ok: false, code: AUTH_CODES.NO_ACCESS, reason: 'Unknown user' };
 
       let role = null;
-      if (doc.ownerId === user.id) role = 'OWNER';
+      if (doc.ownerId === user.id) role = ROLES.OWNER;
       else role = await getUserRoleForDocument(docId, user.id);
 
       // A signed-in user who holds a valid share link but has no explicit
@@ -57,7 +48,7 @@ export async function authenticateHandshake({ docId, token, shareToken }) {
         role = doc.shareRole;
       }
 
-      if (!role) return { ok: false, code: 4003, reason: 'No access to this document' };
+      if (!role) return { ok: false, code: AUTH_CODES.NO_ACCESS, reason: 'No access to this document' };
       return {
         ok: true,
         identity: {
@@ -74,7 +65,11 @@ export async function authenticateHandshake({ docId, token, shareToken }) {
       // Distinguish expired/invalid tokens (4010) from other auth failures
       // (4001) so the client can specifically refresh its token and retry.
       const isExpired = err.message?.includes('expired') || err.message?.includes('token has expired');
-      return { ok: false, code: isExpired ? 4010 : 4001, reason: 'Invalid token' };
+      return {
+        ok: false,
+        code: isExpired ? AUTH_CODES.TOKEN_EXPIRED : AUTH_CODES.INVALID,
+        reason: 'Invalid token',
+      };
     }
   }
 
@@ -92,7 +87,7 @@ export async function authenticateHandshake({ docId, token, shareToken }) {
     };
   }
 
-  return { ok: false, code: 4003, reason: 'Access denied' };
+  return { ok: false, code: AUTH_CODES.NO_ACCESS, reason: 'Access denied' };
 }
 
 function colorFor(seedStr) {

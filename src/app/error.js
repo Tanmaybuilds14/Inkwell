@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { Feather } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { reportError } from "@/lib/error-reporting";
 
 /**
  * Route-segment error boundary (app/error.js convention).
@@ -16,8 +17,8 @@ import { Button } from "@/components/ui/button";
  */
 export default function Error({ error, retry }) {
   useEffect(() => {
-    // Log to console; wire an error-reporting service here (e.g. Sentry).
-    console.error(error);
+    // Console always; Sentry when a DSN is configured (see lib/error-reporting).
+    reportError(error, { scope: "route-error" });
   }, [error]);
 
   return (

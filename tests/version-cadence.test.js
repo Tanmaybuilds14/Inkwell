@@ -32,10 +32,10 @@ vi.mock('../sync-service/node_modules/ioredis', () => {
   return { default: MockRedis };
 });
 
-vi.mock('../sync-service/src/broadcast.js', () => ({
+vi.mock('../sync-service/src/broadcast.js', async () => ({
   subscribeToDocument: vi.fn().mockReturnValue(vi.fn()),
   publishMessage: vi.fn(),
-  MESSAGE_KINDS: { UPDATE: 'update', AWARENESS: 'awareness', APPLY_SNAPSHOT: 'apply-snapshot' },
+  MESSAGE_KINDS: (await import('../shared/protocol.js')).MESSAGE_KINDS,
 }));
 
 vi.mock('../sync-service/src/db.js', () => ({

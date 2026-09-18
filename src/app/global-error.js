@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Outfit, JetBrains_Mono } from "next/font/google";
 import { Feather } from "lucide-react";
+import { reportError } from "@/lib/error-reporting";
 
 // global-error.js replaces the root layout when active, so it must define
 // its own <html>/<body> and load the fonts + theme itself (global styles,
@@ -35,8 +36,8 @@ export default function GlobalError({ error, retry }) {
   });
 
   useEffect(() => {
-    // Log to console; wire an error-reporting service here (e.g. Sentry).
-    console.error(error);
+    // The root layout crashed, so this is the only place left to report from.
+    reportError(error, { scope: "global-error" });
   }, [error]);
 
   return (

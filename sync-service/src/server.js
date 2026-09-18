@@ -4,6 +4,8 @@ import net from 'node:net';
 import { WebSocketServer } from 'ws';
 import { authenticateHandshake } from './auth.js';
 import { getOrCreateRoom, roomStats, listRooms } from './rooms.js';
+import { AUTH_CODES, closeCodeForAuthCode } from '../../shared/protocol.js';
+import { handshakeAllowed } from './rate-limit.js';
 
 /**
  * Parse the port defensively. `Number('')` is 0 (not NaN), and some shells
@@ -64,17 +66,24 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ noServer: true });
 
+// The auth-verdict → close-code mapping and the codes themselves are part of
+// the shared wire contract (shared/protocol.js) because the browser has to
+// interpret them. See that module for what each code means.
+
 /**
- * Map internal auth codes to WebSocket close codes in the 4400-4499 range.
- * y-websocket's client treats 4400-4499 as "reconnecting can't fix this" and
- * stops its own reconnect loop, which lets the app react deliberately:
- *   4400 — token expired: client refreshes the token and reconnects
- *   4401 — invalid token: terminal
- *   4403 — no access to the document: terminal
- *   4404 — document not found: terminal
+ * Deny an upgrade by COMPLETING the WebSocket handshake and immediately closing
+ * with an application close code. A plain HTTP 403 on the raw socket never
+ * reaches the browser's WebSocket API as a close event, so the client could not
+ * tell "expired token, refresh and retry" from "access denied, stop trying" —
+ * it would reconnect forever.
  */
-const CLOSE_CODES = { 4001: 4401, 4010: 4400, 4003: 4403, 4004: 4404 };
-const closeCodeFor = (code) => CLOSE_CODES[code] ?? 4401;
+function denyHandshake(request, socket, head, docId, { code, reason }) {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    const closeCode = closeCodeForAuthCode(code);
+    console.log(`[sync] denied ${docId ?? 'unknown'}: ${reason} (close ${closeCode})`);
+    ws.close(closeCode, reason);
+  });
+}
 
 /**
  * Handshake happens during the HTTP upgrade, before any document bytes flow:
@@ -93,25 +102,28 @@ server.on('upgrade', async (request, socket, head) => {
   const token = url.searchParams.get('token');
   const shareToken = url.searchParams.get('share');
 
+  // Throttle before authenticating: an unauthenticated handshake costs a Clerk
+  // verification plus a database lookup, so it is the cheapest thing to flood.
+  // Checked first so a flood never reaches that work at all.
+  const ip = request.socket.remoteAddress ?? 'unknown';
+  if (!(await handshakeAllowed(ip))) {
+    denyHandshake(request, socket, head, docId, {
+      code: AUTH_CODES.RATE_LIMITED,
+      reason: 'Too many connection attempts',
+    });
+    return;
+  }
+
   let auth;
   try {
     auth = await authenticateHandshake({ docId, token, shareToken });
   } catch (err) {
     console.error('[upgrade] auth error:', err.message);
-    auth = { ok: false, code: 4001, reason: 'Authentication failed' };
+    auth = { ok: false, code: AUTH_CODES.INVALID, reason: 'Authentication failed' };
   }
 
   if (!auth.ok) {
-    // Complete the WebSocket handshake and immediately close with an
-    // application close code. A plain HTTP 403 on the raw socket never
-    // reaches the browser's WebSocket API as a close event, so the client
-    // cannot tell "expired token, refresh and retry" from "access denied,
-    // stop trying" — it would reconnect forever.
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      const code = closeCodeFor(auth.code);
-      console.log(`[sync] denied ${docId}: ${auth.reason} (close ${code})`);
-      ws.close(code, auth.reason);
-    });
+    denyHandshake(request, socket, head, docId, auth);
     return;
   }
 

@@ -1,0 +1,16 @@
+# Ignore file for sync-service/Dockerfile only (BuildKit picks up
+# <dockerfile>.dockerignore over the context-root .dockerignore, which exists
+# for Dockerfile.web and would otherwise exclude sync-service entirely).
+#
+# The context is the repo root, but the image needs just two trees, so invert
+# the default: ignore everything, then re-include what the build copies.
+*
+!shared
+!sync-service
+
+# Deps are installed inside the container from the lockfile.
+sync-service/node_modules
+
+# Never bake secrets into an image — inject them at runtime.
+**/.env
+**/.env.*

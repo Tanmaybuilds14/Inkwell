@@ -356,12 +356,23 @@ export function Dashboard() {
   );
 }
 
+/**
+ * One sidebar entry, used both directly inside the column <nav> and as the
+ * main element of a horizontal folder row (SidebarGroup).
+ *
+ * It is `w-full` rather than `flex-1` on purpose: the nav stacks its children
+ * vertically, so main-axis growth there is VERTICAL — flex-1 made the single
+ * "All documents" entry stretch to the entire height of the full-height
+ * desktop <aside>, leaving its label floating in the middle of a huge box.
+ * Filling a horizontal row only needs width, which w-full provides; the folder
+ * rows keep their rename/delete buttons in place with shrink-0.
+ */
 function SidebarLink({ active, onClick, children }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "flex flex-1 items-center rounded-md px-2 py-1.5 text-left transition-colors",
+        "flex w-full min-w-0 items-center rounded-md px-2 py-1.5 text-left transition-colors",
         active ? "bg-primary/10 font-medium text-primary" : "hover:bg-accent"
       )}
     >
@@ -402,7 +413,7 @@ function SidebarNav({ folders, activeFolderId, setActiveFolderId, onRename, onDe
               <span className="flex-1 truncate">{f.name}</span>
               <span className="mr-1 text-xs text-muted-foreground">{f._count.documents}</span>
             </SidebarLink>
-            <span className="flex">
+            <span className="flex shrink-0">
               <button title="Rename" onClick={() => onRename(f)} className="px-1 text-muted-foreground transition-opacity hover:text-foreground">
                 <Pencil className="h-3 w-3" />
               </button>
