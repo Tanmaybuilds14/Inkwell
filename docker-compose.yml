@@ -1,3 +1,5 @@
+
+# docker compose --profile app up --build  build the full application 
 services:
   redis:
     image: redis:7-alpine

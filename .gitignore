@@ -51,3 +51,6 @@ scripts
 next-env.d.ts
 .opencode/*
 sync-service/node_modules
+.claude/*
+.agents/*
+brag-output/*

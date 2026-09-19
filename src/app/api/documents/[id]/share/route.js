@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { handle, apiError, json, requireDocument } from '@/lib/api-helpers';
 import { track, EVENTS } from '@/lib/telemetry';
 import { ROLES } from '@/lib/permissions';
+import { buildCollaborators, COLLABORATOR_SELECT, isPendingUser } from '@/lib/collaborators';
 import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
 import { recordInvite, recordLinkShared } from '@/lib/inbox';
 
@@ -22,34 +23,14 @@ export async function GET(request, { params }) {
         shareRole: true,
         shareToken: true,
         owner: { select: { id: true, name: true, email: true } },
-        permissions: {
-          select: {
-            id: true,
-            role: true,
-            invitedEmail: true,
-            user: { select: { id: true, name: true, email: true } },
-          },
-        },
+        permissions: { select: COLLABORATOR_SELECT },
       },
     });
 
-    const collaborators = [
-      {
-        permissionId: null,
-        userId: doc.owner.id,
-        name: doc.owner.name ?? doc.owner.email,
-        email: doc.owner.email,
-        role: 'OWNER',
-      },
-      ...doc.permissions.map((p) => ({
-        permissionId: p.id,
-        userId: p.user.id,
-        name: p.user.name ?? p.user.email,
-        email: p.user.email,
-        role: p.role,
-        pending: !p.user.clerkId || p.user.clerkId.startsWith('pending_'),
-      })),
-    ];
+    const collaborators = buildCollaborators({
+      owner: doc.owner,
+      permissions: doc.permissions,
+    });
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
     return json({
@@ -101,7 +82,9 @@ export async function POST(request, { params }) {
         invitedEmail: email,
         invitedBy: user.id,
       },
-      select: { id: true, role: true },
+      // The invitee may already be a real account (re-inviting a signed-up
+      // user), in which case nothing here is pending.
+      select: { id: true, role: true, user: { select: { clerkId: true } } },
     });
 
     logActivity(ACTIVITY_TYPES.DOC_SHARED, {
@@ -150,7 +133,7 @@ export async function POST(request, { params }) {
           permissionId: permission.id,
           email,
           role: permission.role,
-          pending: true,
+          pending: isPendingUser(permission.user),
         },
       },
       { status: 201 }

@@ -48,5 +48,13 @@ test.describe('auth gate', () => {
     await expect(page.getByText("Can't open this document")).toBeVisible();
     await expect(page.getByText('Sign in to open this document.')).toBeVisible();
     await expect(page.getByRole('button', { name: /sign in to continue/i })).toBeVisible();
+
+    // An invite link must not dead-end in a 404 for a guest: the API answers
+    // 404 to everyone without a session (fail-closed), and only the client
+    // knows whether that is because they are signed out.
+    await expect(page.getByRole('heading', { name: /isn't available/i })).toHaveCount(0);
+    await expect(page.getByText('404', { exact: true })).toHaveCount(0);
+    // The API's own wording is never printed at the user.
+    await expect(page.getByText(/document not found/i)).toHaveCount(0);
   });
 });

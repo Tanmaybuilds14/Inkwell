@@ -49,7 +49,13 @@ export async function api(url, options = {}) {
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(body.error ?? `Request failed (${res.status})`);
+    // The status travels with the error because callers have to branch on it:
+    // a 404 means "gone, or not shared with you" (render a 404 page), while
+    // anything else is a real failure (render the error page). Matching on the
+    // message string instead would break the moment the API's wording changes.
+    const error = new Error(body.error ?? `Request failed (${res.status})`);
+    error.status = res.status;
+    throw error;
   }
   return body;
 }

@@ -232,6 +232,121 @@ body {
 }
 .inkwell-editor .ProseMirror code { font-family: var(--font-mono); font-size: 0.9em; }
 
+/* ---- To-do (task) lists ---- */
+.inkwell-editor .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.inkwell-editor .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.inkwell-editor .ProseMirror ul[data-type="taskList"] li > label {
+  flex: 0 0 auto;
+  margin-top: 0.3rem;
+  user-select: none;
+}
+.inkwell-editor .ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.inkwell-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.inkwell-editor .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+
+/* ---- Tables ---- */
+.inkwell-editor .ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0.75rem 0;
+  overflow: hidden;
+}
+.inkwell-editor .ProseMirror table td,
+.inkwell-editor .ProseMirror table th {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  vertical-align: top;
+  position: relative;
+}
+.inkwell-editor .ProseMirror table th {
+  background: var(--muted);
+  font-weight: 600;
+  text-align: left;
+}
+.inkwell-editor .ProseMirror table p { margin: 0; }
+.inkwell-editor .ProseMirror .selectedCell:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  pointer-events: none;
+}
+.inkwell-editor .ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--primary);
+  pointer-events: none;
+}
+.inkwell-editor .ProseMirror.resize-cursor { cursor: col-resize; }
+
+/* ---- Images ---- */
+.inkwell-editor .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+.inkwell-editor .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---- Slash command menu ---- */
+.slash-menu-shadow { box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.35); }
+
+/* Code language badge (see SlashCodeLanguage below) */
+.code-lang-badge {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+/* ---- highlight.js theme (works in light & dark via CSS vars) ---- */
+/* Base token colors: muted slate in light, brighter in dark. */
+.hljs-comment, .hljs-quote { color: var(--muted-foreground); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section { color: #8250df; }
+.dark .hljs-keyword, .dark .hljs-selector-tag, .dark .hljs-literal, .dark .hljs-section { color: #b392f0; }
+.hljs-string, .hljs-regexp, .hljs-addition, .hljs-attribute { color: #0a7d3f; }
+.dark .hljs-string, .dark .hljs-regexp, .dark .hljs-addition, .dark .hljs-attribute { color: #7ee787; }
+.hljs-number, .hljs-variable, .hljs-template-variable, .hljs-type { color: #b35900; }
+.dark .hljs-number, .dark .hljs-variable, .dark .hljs-template-variable, .dark .hljs-type { color: #ffa657; }
+.hljs-title, .hljs-title.function_, .hljs-name { color: #0550ae; }
+.dark .hljs-title, .dark .hljs-title.function_, .dark .hljs-name { color: #79c0ff; }
+.hljs-built_in, .hljs-class .hljs-title { color: #953800; }
+.dark .hljs-built_in, .dark .hljs-class .hljs-title { color: #ffa657; }
+.hljs-meta, .hljs-deletion { color: #cf222e; }
+.dark .hljs-meta, .dark .hljs-deletion { color: #ff7b72; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
 /* Collaborator carets — tiptap v3 emits .collaboration-carets__* */
 .collaboration-carets__caret {
   position: relative;
