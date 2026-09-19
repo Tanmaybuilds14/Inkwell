@@ -51,6 +51,10 @@ scripts
 next-env.d.ts
 .opencode/*
 sync-service/node_modules
-.claude/*
-.agents/*
+.claude/*.agents/*
+
+# brag launch-video output — scratch renders, snapshots and music cues stay out,
+# but the delivered video, poster, caption and the composition that renders them
+# are part of the repo (see README > Launch video).
 brag-output/*
+
