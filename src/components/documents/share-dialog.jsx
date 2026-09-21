@@ -30,7 +30,9 @@ export function ShareDialog({ documentId, open, onOpenChange }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("EDITOR");
   const [error, setError] = useState(null);
-  const [copied, setCopied] = useState(false);
+  // Which link was copied last, so the two copy buttons confirm independently
+  // ("copiedLink" | "copiedPage" | null).
+  const [copied, setCopied] = useState(null);
 
   const load = useCallback(
     () =>
@@ -92,6 +94,12 @@ export function ShareDialog({ documentId, open, onOpenChange }) {
       body: JSON.stringify({ linkEnabled: true, linkRole }),
     });
     load();
+  }
+
+  async function copyLink(value, which) {
+    await navigator.clipboard.writeText(value);
+    setCopied(which);
+    setTimeout(() => setCopied(null), 1500);
   }
 
   return (
@@ -203,6 +211,11 @@ export function ShareDialog({ documentId, open, onOpenChange }) {
 
           {data?.link?.enabled ? (
             <div className="flex flex-col gap-2">
+              {/* Two links, because they lead to two different things: the
+                  editor (live collaboration, guests welcome) and the public
+                  page (a server-rendered read-only snapshot that needs no
+                  account and unfurls in chat clients). */}
+              <p className="text-xs text-muted-foreground">Live editor link</p>
               <div className="flex items-center gap-2">
                 <Input
                   readOnly
@@ -212,14 +225,10 @@ export function ShareDialog({ documentId, open, onOpenChange }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(data.link.url);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1500);
-                  }}
+                  onClick={() => copyLink(data.link.url, "copiedLink")}
                 >
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  {copied ? "Copied!" : "Copy"}
+                  {copied === "copiedLink" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copied === "copiedLink" ? "Copied!" : "Copy"}
                 </Button>
                 <Button
                   variant="ghost"
@@ -230,6 +239,30 @@ export function ShareDialog({ documentId, open, onOpenChange }) {
                   Revoke
                 </Button>
               </div>
+
+              {data.link.pageUrl ? (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Read-only page — opens without an account
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      readOnly
+                      value={data.link.pageUrl}
+                      className="text-xs text-muted-foreground"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyLink(data.link.pageUrl, "copiedPage")}
+                    >
+                      {copied === "copiedPage" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      {copied === "copiedPage" ? "Copied!" : "Copy"}
+                    </Button>
+                  </div>
+                </>
+              ) : null}
+
               <div className="flex items-center gap-2 text-xs">
                 <span className="text-muted-foreground">link holders can:</span>
                 <Select

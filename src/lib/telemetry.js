@@ -14,6 +14,7 @@ export const EVENTS = {
   DOC_SHARED: 'doc_shared',
   DOC_PERMISSION_CHANGED: 'doc_permission_changed',
   DOC_LINK_REVOKED: 'doc_link_revoked',
+  DOC_MENTIONED: 'doc_mentioned',
   DOC_MOVED_TO_TRASH: 'doc_moved_to_trash',
   DOC_RESTORED: 'doc_restored',
   DOC_PURGED: 'doc_purged',

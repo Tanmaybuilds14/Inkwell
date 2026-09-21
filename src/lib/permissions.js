@@ -31,6 +31,11 @@ export async function resolveDocumentRole(documentId, userId, { shareToken = nul
     where: { id: documentId },
     select: {
       id: true,
+      // Callers denormalize this into inbox receipts and activity rows
+      // (docTitle survives document deletion). It used to be missing here, so
+      // `document.title` on the object requireDocument() returns was always
+      // undefined and every such snapshot read "Untitled".
+      title: true,
       ownerId: true,
       deletedAt: true,
       shareEnabled: true,

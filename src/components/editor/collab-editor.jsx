@@ -18,6 +18,8 @@ import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
 import { AuthorshipUnderlines } from "@/components/editor/authorship";
 import { SlashCommand } from "@/components/editor/slash-command";
+import { MentionNode, MentionSuggestions, filterMentionItems } from "@/components/editor/mention";
+import { api } from "@/components/app-header";
 import {
   Bold,
   Italic,
@@ -74,6 +76,69 @@ export function CollabEditor({ documentId, ydoc, provider, role }) {
   // command }); items' commands need it to delete the "/query" text.
   const suggestionRef = useRef(null);
 
+  // Mention menu state, mirroring the slash menu's shape. The roster arrives
+  // after mount (it is a request), so it lives in a ref: the suggestion reads
+  // it on the next keystroke rather than being frozen at configure() time.
+  const peopleRef = useRef([]);
+  const [mention, setMention] = useState(null); // { items, selectedIndex, clientRect }
+  const mentionRef = useRef(null);
+  const updateMention = useCallback((updater) => {
+    setMention((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      mentionRef.current = next;
+      return next;
+    });
+  }, []);
+  // The live Suggestion callback bundle for the open "@" menu; applying an
+  // item needs it to replace the "/query" range with the mention node.
+  const mentionSuggestionRef = useRef(null);
+
+  const applyMentionItem = useCallback(
+    (person) => {
+      const props = mentionSuggestionRef.current;
+      if (props && person) {
+        props.command({ id: person.id, label: person.name });
+      }
+      updateMention(null);
+    },
+    [updateMention]
+  );
+
+  /**
+   * Notify someone they were mentioned. Fire-and-forget by design: the mention
+   * is already in the document, the API validates that the person can see it,
+   * and a failed notification must never surface as an error in the editor of
+   * whoever typed it.
+   */
+  const notifyMention = useCallback(
+    (person) => {
+      if (!person?.id) return;
+      api(`/api/documents/${documentId}/mentions`, {
+        method: "POST",
+        body: JSON.stringify({ userIds: [person.id] }),
+      }).catch(() => {});
+    },
+    [documentId]
+  );
+
+  // Mentionable people, fetched once per document. Editors only — a read-only
+  // viewer has no menu to fill.
+  useEffect(() => {
+    if (!canEdit) return undefined;
+    let cancelled = false;
+    api(`/api/documents/${documentId}/mentions`)
+      .then((data) => {
+        if (!cancelled) peopleRef.current = data.people ?? [];
+      })
+      .catch(() => {
+        // An unfetched roster is an empty menu, not a broken editor: everything
+        // else keeps working, so this is not worth interrupting anyone over.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [documentId, canEdit]);
+
   const applySlashItem = useCallback(
     (item) => {
       const props = suggestionRef.current;
@@ -107,6 +172,10 @@ export function CollabEditor({ documentId, ydoc, provider, role }) {
         TableCell,
         Image.configure({ inline: false, allowBase64: true }),
         CodeBlockLowlight.configure({ lowlight }),
+        // Unconditional, unlike the suggestion below it: a viewer who can never
+        // insert a mention must still be able to *render* one. A node type the
+        // schema does not know would make the whole document fail to load.
+        MentionNode,
         // Collaboration binds to the ydoc unconditionally (when we have one):
         // the socket drops long before the network does — during a reconnect
         // or while the browser is offline — and unmounting the content then
@@ -133,6 +202,72 @@ export function CollabEditor({ documentId, ydoc, provider, role }) {
           : []),
         ...(canEdit
           ? [
+              // The suggestion callbacks below touch refs, but only when the
+              // plugin invokes them at editor runtime (on "@" typed, on keys)
+              // — never during React render. The lint rule can't see that
+              // distinction, hence the disable.
+              // eslint-disable-next-line react-hooks/refs
+              MentionSuggestions.configure({
+                // Reading peopleRef inside items() rather than passing the
+                // array is what lets the roster land after the editor mounts.
+                items: (query) => filterMentionItems(peopleRef.current, query),
+                onMention: notifyMention,
+                render: () => ({
+                  onStart: (props) => {
+                    mentionSuggestionRef.current = props;
+                    updateMention({
+                      items: props.items,
+                      selectedIndex: 0,
+                      clientRect: props.clientRect?.() ?? null,
+                    });
+                  },
+                  onUpdate: (props) => {
+                    mentionSuggestionRef.current = props;
+                    updateMention((prev) => ({
+                      items: props.items,
+                      selectedIndex: Math.min(
+                        prev?.selectedIndex ?? 0,
+                        Math.max(props.items.length - 1, 0)
+                      ),
+                      clientRect: props.clientRect?.() ?? null,
+                    }));
+                  },
+                  onExit: () => {
+                    mentionSuggestionRef.current = null;
+                    updateMention(null);
+                  },
+                  // Suggestion delegates every key but Escape to the renderer
+                  // (Escape it clears itself), so the menu owns its own
+                  // navigation instead of sharing the editor-level handler
+                  // the slash menu uses.
+                  onKeyDown: (props) => {
+                    const current = mentionRef.current;
+                    const items = current?.items ?? [];
+                    if (!items.length) return false;
+                    const { event } = props;
+                    if (event.key === "ArrowDown") {
+                      updateMention((prev) => ({
+                        ...prev,
+                        selectedIndex: ((prev?.selectedIndex ?? 0) + 1) % items.length,
+                      }));
+                      return true;
+                    }
+                    if (event.key === "ArrowUp") {
+                      updateMention((prev) => ({
+                        ...prev,
+                        selectedIndex:
+                          ((prev?.selectedIndex ?? 0) - 1 + items.length) % items.length,
+                      }));
+                      return true;
+                    }
+                    if (event.key === "Enter") {
+                      applyMentionItem(items[current?.selectedIndex ?? 0]);
+                      return true;
+                    }
+                    return false;
+                  },
+                }),
+              }),
               // The suggestion callbacks below touch refs, but only when the
               // plugin invokes them at editor runtime (on "/" typed, on keys)
               // — never during React render. The lint rule can't see that
@@ -233,6 +368,14 @@ export function CollabEditor({ documentId, ydoc, provider, role }) {
           editor={editor}
         />
       ) : null}
+      {mention && mention.items?.length > 0 && canEdit ? (
+        <MentionMenu
+          items={mention.items}
+          selectedIndex={mention.selectedIndex ?? 0}
+          clientRect={mention.clientRect}
+          onApply={applyMentionItem}
+        />
+      ) : null}
     </div>
   );
 }
@@ -318,6 +461,67 @@ function SlashMenu({ items, selectedIndex, clientRect, onApply }) {
       </div>
     </div>
   );
+}
+
+/**
+ * The floating "@" menu. Same anchoring as the slash menu (viewport rect from
+ * the suggestion, offset below the line being typed) but much smaller: it is a
+ * people picker, so it is a list of names and nothing else.
+ */
+function MentionMenu({ items, selectedIndex, clientRect, onApply }) {
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    const el = listRef.current?.children[selectedIndex];
+    el?.scrollIntoView({ block: "nearest" });
+  }, [selectedIndex]);
+
+  if (!clientRect) return null;
+
+  return (
+    <div
+      style={{ left: clientRect.left, top: clientRect.bottom + 6 }}
+      className="absolute z-50"
+    >
+      <div
+        className="max-h-64 w-64 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-lg"
+        role="listbox"
+        aria-label="Mention a collaborator"
+      >
+        {items.map((person, index) => (
+          <button
+            key={person.id}
+            type="button"
+            role="option"
+            aria-selected={index === selectedIndex}
+            ref={index === selectedIndex ? listRef : undefined}
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left",
+              index === selectedIndex ? "bg-accent" : "hover:bg-accent/60"
+            )}
+            onMouseDown={(e) => {
+              // mousedown, not click: the editor would blur first and destroy
+              // the suggestion state before onClick fires.
+              e.preventDefault();
+              onApply(person);
+            }}
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-bold text-secondary-foreground">
+              {initials(person.name)}
+            </span>
+            <span className="min-w-0 truncate text-sm">{person.name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Two initials at most — the same convention as the avatar circles. */
+function initials(name) {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
 function SlashItemIcon({ icon }) {

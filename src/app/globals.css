@@ -232,6 +232,26 @@ body {
 }
 .inkwell-editor .ProseMirror code { font-family: var(--font-mono); font-size: 0.9em; }
 
+/* ---- @mentions ----
+   The node renders in the editor, in copied text and on the public share page
+   (which reuses this same .inkwell-editor surface), so the styling lives with
+   the editor rules rather than in a component. */
+.inkwell-editor .ProseMirror .inkwell-mention {
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  padding: 0.05rem 0.3rem;
+  font-weight: 500;
+  white-space: nowrap;
+  /* A person reference, not prose: never let it break across lines. */
+  box-decoration-break: clone;
+}
+
+.inkwell-editor .ProseMirror .inkwell-mention::selection {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
 /* ---- To-do (task) lists ---- */
 .inkwell-editor .ProseMirror ul[data-type="taskList"] {
   list-style: none;

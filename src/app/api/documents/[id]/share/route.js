@@ -6,6 +6,7 @@ import { ROLES } from '@/lib/permissions';
 import { buildCollaborators, COLLABORATOR_SELECT, isPendingUser } from '@/lib/collaborators';
 import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
 import { recordInvite, recordLinkShared } from '@/lib/inbox';
+import { sharePageUrl } from '@/lib/share-page';
 
 const VALID_ROLES = new Set([ROLES.EDITOR, ROLES.COMMENTER, ROLES.VIEWER]);
 
@@ -35,13 +36,7 @@ export async function GET(request, { params }) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
     return json({
       collaborators,
-      link: doc.shareEnabled
-        ? {
-            enabled: true,
-            role: doc.shareRole,
-            url: `${appUrl}/documents/${id}?share=${doc.shareToken}`,
-          }
-        : { enabled: false, role: null, url: null },
+      link: shareLinkPayload({ doc, id, appUrl }),
     });
   });
 }
@@ -239,18 +234,30 @@ export async function PATCH(request, { params }) {
 
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
       return json({
-        link: updated.shareEnabled
-          ? {
-              enabled: true,
-              role: updated.shareRole,
-              url: `${appUrl}/documents/${id}?share=${updated.shareToken}`,
-            }
-          : { enabled: false, role: null, url: null },
+        link: shareLinkPayload({ doc: updated, id, appUrl }),
       });
     }
 
     return apiError(400, 'Nothing to update');
   });
+}
+
+/**
+ * The link-sharing state, in one place so GET and PATCH cannot drift.
+ *
+ * Two URLs, because the link is two different things to two different people:
+ * `url` opens the live editor (guest collaborators welcome), while `pageUrl`
+ * is the server-rendered read-only page that works without an account and
+ * gives link previews something to read.
+ */
+function shareLinkPayload({ doc, id, appUrl }) {
+  if (!doc.shareEnabled) return { enabled: false, role: null, url: null, pageUrl: null };
+  return {
+    enabled: true,
+    role: doc.shareRole,
+    url: `${appUrl}/documents/${id}?share=${doc.shareToken}`,
+    pageUrl: sharePageUrl(doc.shareToken, appUrl),
+  };
 }
 
 /** DELETE — remove a collaborator (?permissionId=...). Owner only. */

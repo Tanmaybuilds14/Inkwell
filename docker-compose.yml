@@ -1,6 +1,21 @@
-
-# docker compose --profile app up --build  build the full application 
+# docker compose --profile app up --build  build the full application
 services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: inkwell
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d inkwell"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
   redis:
     image: redis:7-alpine
     ports:
@@ -15,30 +30,38 @@ services:
   sync:
     profiles: ["app"]
     build:
-      context: ./sync-service
+      context: .
+      dockerfile: sync-service/Dockerfile
     env_file: .env
     environment:
       REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/inkwell?schema=public
       SYNC_PORT: "1234"
     ports:
       - "1234:1234"
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
 
   # Two sync instances to exercise cross-server broadcast locally.
   sync2:
     profiles: ["app"]
     build:
-      context: ./sync-service
+      context: .
+      dockerfile: sync-service/Dockerfile
     env_file: .env
     environment:
       REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/inkwell?schema=public
       SYNC_PORT: "1234"
     ports:
       - "1235:1234"
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
 
   web:
@@ -52,9 +75,17 @@ services:
     env_file: .env
     environment:
       REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/inkwell?schema=public
       NEXT_PUBLIC_APP_URL: http://localhost:3000
     ports:
       - "3000:3000"
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+      sync:
+        condition: service_started
+
+volumes:
+  pgdata:

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  AtSign,
   Bell,
   FileText,
   Link2,
@@ -26,6 +27,7 @@ const TYPE_META = {
   invite: { icon: Mail, label: "Invitation" },
   link_shared: { icon: Link2, label: "Link shared" },
   link_opened: { icon: FileText, label: "Opened by link" },
+  mention: { icon: AtSign, label: "Mention" },
 };
 
 /** Role label shown on invite items; meta.role is optional. */
@@ -226,6 +228,9 @@ function InboxRow({ item, accepting, onAccept, onOpen, onRemove }) {
   const accepted = !!item.meta?.acceptedAt;
   const acceptable =
     (item.type === "invite" || item.type === "link_opened") && item.documentId;
+  // A mention is not an invitation — the document is already readable (that is
+  // what made the mention possible), so there is nothing to accept.
+  const mentionCount = item.type === "mention" ? Number(item.meta?.count) || 0 : 0;
 
   const title =
     item.type === "invite"
@@ -236,7 +241,11 @@ function InboxRow({ item, accepting, onAccept, onOpen, onRemove }) {
         ? inviterName
           ? `${inviterName} shared a link to a document`
           : "A document link is being shared"
-        : "Opened via shared link";
+        : item.type === "mention"
+          ? inviterName
+            ? `${inviterName} mentioned you`
+            : "You were mentioned"
+          : "Opened via shared link";
 
   const href = item.documentId ? `/documents/${item.documentId}` : null;
 
@@ -265,7 +274,8 @@ function InboxRow({ item, accepting, onAccept, onOpen, onRemove }) {
           {role ? <span className="text-muted-foreground"> as {role}</span> : null}
         </p>
         <p className="truncate text-xs text-muted-foreground">
-          {meta.label} · {item.docTitle || "Untitled"}
+          {meta.label}
+          {mentionCount > 1 ? ` (${mentionCount}×)` : ""} · {item.docTitle || "Untitled"}
         </p>
       </div>
 

@@ -9,6 +9,7 @@ import { track, EVENTS } from '@/lib/telemetry';
  *                        on a document the recipient already has access to
  *   - `link_opened`    — the recipient opened a shared document by link;
  *                        claimed once, so their dashboard reflects the doc
+ *   - `mention`        — someone typed @them in the document body
  *
  * Items are denormalized (title snapshot) so the inbox survives document
  * deletion and never needs a join to render. Writes are best-effort: a
@@ -24,7 +25,11 @@ export const INBOX_TYPES = {
   INVITE: 'invite',
   LINK_SHARED: 'link_shared',
   LINK_OPENED: 'link_opened',
+  MENTION: 'mention',
 };
+
+/** Upper bound on one mention request, so a crafted payload can't fan out. */
+export const MAX_MENTIONS_PER_REQUEST = 20;
 
 /** meta.acceptedAt is set by acceptInboxItem once the user accepts. */
 export function isInviteAccepted(item) {
@@ -177,6 +182,108 @@ export async function claimSharedLink({ userId, documentId, docTitle, ownerId, r
     track(EVENTS.DOC_OPENED, { user_id: userId, document_id: documentId, via_link: true });
   } catch (err) {
     console.warn('[inbox] link claim failed:', err.message);
+  }
+}
+
+/**
+ * Record @mentions of one or more people in a document body.
+ *
+ * The editor detects the mention (it knows exactly who was picked from the
+ * menu) and the server validates it — a mention must never become a back door
+ * into a document, so anyone who cannot already see it is dropped silently.
+ * Self-mentions are dropped too: mentioning yourself is writing, not a
+ * notification.
+ *
+ * One row per (user, document), like recordInvite: being mentioned again
+ * bumps the existing receipt back to unread with a count, instead of stacking
+ * a new row per occurrence in a busy document. `meta.count` is what makes an
+ * inbox row honest about repeated mentions.
+ *
+ * Best-effort like its siblings: a failed notification must never break
+ * someone's typing. Returns how many people were notified.
+ */
+export async function recordMentions({
+  userIds = [],
+  documentId,
+  docTitle,
+  actorId,
+  actorName = null,
+}) {
+  if (!documentId || !actorId) return 0;
+
+  const targets = [
+    ...new Set(userIds.filter((id) => typeof id === 'string' && id)),
+  ].filter((id) => id !== actorId);
+  if (targets.length === 0) return 0;
+
+  try {
+    // Who may be mentioned: only people who can already open the document.
+    const doc = await prisma.document.findFirst({
+      where: { id: documentId, deletedAt: null },
+      select: {
+        ownerId: true,
+        permissions: {
+          where: { userId: { in: targets } },
+          select: { userId: true },
+        },
+      },
+    });
+    if (!doc) return 0;
+
+    const allowed = new Set((doc.permissions ?? []).map((p) => p.userId));
+    allowed.add(doc.ownerId);
+
+    let notified = 0;
+    for (const userId of targets) {
+      if (!allowed.has(userId)) continue;
+
+      const existing = await prisma.inboxItem.findFirst({
+        where: { userId, documentId, type: INBOX_TYPES.MENTION },
+        select: { id: true, meta: true },
+      });
+      const previousCount = Number(existing?.meta?.count) || 0;
+      const meta = {
+        ...(actorName ? { inviterName: actorName } : {}),
+        count: previousCount + 1,
+      };
+
+      if (existing) {
+        await prisma.inboxItem.update({
+          where: { id: existing.id },
+          data: {
+            docTitle,
+            inviterId: actorId,
+            meta,
+            readAt: null,
+            createdAt: new Date(),
+          },
+        });
+      } else {
+        await prisma.inboxItem.create({
+          data: {
+            userId,
+            type: INBOX_TYPES.MENTION,
+            documentId,
+            docTitle,
+            inviterId: actorId,
+            meta,
+          },
+        });
+      }
+      notified += 1;
+    }
+
+    if (notified > 0) {
+      track(EVENTS.DOC_MENTIONED, {
+        document_id: documentId,
+        actor_id: actorId,
+        recipients: notified,
+      });
+    }
+    return notified;
+  } catch (err) {
+    console.warn('[inbox] mention write failed:', err.message);
+    return 0;
   }
 }
 

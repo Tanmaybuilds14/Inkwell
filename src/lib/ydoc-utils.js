@@ -23,17 +23,70 @@ export function encodeState(doc) {
 }
 
 /**
- * Renders a stored Yjs update to HTML for version previews. Runs Tiptap's
- * static HTML generator against a headless doc — no browser required.
+ * The node-producing extensions a stored document is rendered with.
+ *
+ * This MUST mirror the editor's list (see collab-editor): static HTML
+ * generation throws on any node the schema doesn't know, and the editor can
+ * put task lists, tables, images, highlighted code blocks and mentions into
+ * the ydoc. Runtime-only extensions — collaboration, carets, authorship,
+ * slash commands and mention suggestions — contribute no stored content and
+ * are deliberately absent.
+ *
+ * Everything is imported lazily, so merely importing this module (which the
+ * sync service is allowed to do) costs nothing until something renders.
+ */
+export async function documentExtensions() {
+  const [
+    { StarterKit },
+    { TaskList, TaskItem },
+    { Table, TableRow, TableHeader, TableCell },
+    { default: Image },
+    { CodeBlockLowlight },
+    { common, createLowlight },
+    { MentionNode },
+  ] = await Promise.all([
+    import('@tiptap/starter-kit'),
+    import('@tiptap/extension-list'),
+    import('@tiptap/extension-table'),
+    import('@tiptap/extension-image'),
+    import('@tiptap/extension-code-block-lowlight'),
+    import('lowlight'),
+    // The mention node lives with the editor extensions, but its schema is
+    // half of the stored-document contract — the editor writes these nodes,
+    // so every renderer of a stored document has to understand them.
+    import('../components/editor/mention.js'),
+  ]);
+
+  return [
+    // The lowlight variant replaces the plain code block (both register the
+    // "codeBlock" node name — registering both would throw). A static render
+    // has no history and never runs plugins.
+    StarterKit.configure({ codeBlock: false, undoRedo: false }),
+    TaskList,
+    TaskItem.configure({ nested: true }),
+    Table,
+    TableRow,
+    TableHeader,
+    TableCell,
+    Image.configure({ inline: false, allowBase64: true }),
+    CodeBlockLowlight.configure({ lowlight: createLowlight(common) }),
+    MentionNode,
+  ];
+}
+
+/**
+ * Renders a stored Yjs update to HTML for version previews and the public
+ * share page. Runs Tiptap's static HTML generator against a headless doc —
+ * no browser required — over the full node set the editor can produce.
  */
 export async function yUpdateToHtml(snapshotBytes) {
   if (!snapshotBytes || snapshotBytes.length === 0) return '';
 
-  const [{ yXmlFragmentToProsemirrorJSON }, { generateHTML }, { StarterKit }] =
+  const [{ yXmlFragmentToProsemirrorJSON }, { generateHTML }, extensions] =
     await Promise.all([
       import('@tiptap/y-tiptap'),
       import('@tiptap/html'),
-      import('@tiptap/starter-kit'),
+      documentExtensions(),
     ]);
 
   const doc = docFromSnapshot(snapshotBytes);
@@ -41,7 +94,7 @@ export async function yUpdateToHtml(snapshotBytes) {
     const fragment = doc.getXmlFragment('default');
     if (fragment.length === 0) return '';
     const json = yXmlFragmentToProsemirrorJSON(fragment);
-    return generateHTML(json, [StarterKit.configure({ history: false })]);
+    return generateHTML(json, extensions);
   } finally {
     doc.destroy();
   }
