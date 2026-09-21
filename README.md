@@ -8,6 +8,10 @@ A self-hostable, real-time collaborative document platform. Multiple people writ
 same paragraph at the same instant and **Yjs CRDTs merge every keystroke** — no conflicts,
 no overwrites, no lost work.
 
+
+https://github.com/user-attachments/assets/efff266f-876e-4461-8a76-73f7fb04e6f6
+
+
 [![Next.js 16](https://img.shields.io/badge/Next.js_16-000000?style=flat-square&logo=nextdotjs&logoColor=white)](https://nextjs.org)
 [![React 19](https://img.shields.io/badge/React_19-20232A?style=flat-square&logo=react&logoColor=61DAFB)](https://react.dev)
 [![Yjs CRDT](https://img.shields.io/badge/Yjs-CRDT-8b5cf6?style=flat-square)](https://yjs.dev)
@@ -21,31 +25,6 @@ no overwrites, no lost work.
 [![License](https://img.shields.io/badge/license-private-292524?style=flat-square)](#license)
 
 </div>
-
----
-
-## 🎬 Launch video
-
-A 22.9-second launch film for this project was produced with the [`brag`](.agents/skills/brag/SKILL.md)
-skill and Hyperframes. It opens on two coloured carets typing
-*"Write together, in real time."* into the same line at once, then walks the real user flow:
-dashboard → open a document → two people editing one paragraph → the merged sentence →
-sharing and permissions.
-
-```text
-brag-output/
-  brag.mp4              22.9s · 1920x1080 · 30fps · H.264/AAC
-  brag.jpg              poster frame (baked as frame 0 — the idle thumbnail everywhere)
-  share-copy.txt        the caption to post with it
-  brag-plan.md          storyboard and creative contract
-  composition-brief.md  the Hyperframes handoff brief
-  composition/          the Hyperframes project that renders it
-```
-
-`brag-output/` is gitignored (it holds a rendered binary), so clone-and-run will not
-contain it — regenerate with `npx hyperframes render` inside `brag-output/composition`.
-
----
 
 ## Contents
 
