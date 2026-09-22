@@ -49,6 +49,11 @@ async function denyUnusableShareToken(request) {
 
 // Next.js 16: middleware.js was renamed to proxy.js.
 // Authenticates every request; route protection happens here + server-side in each API route/page.
+//
+// On Vercel production with a `*.vercel.app` host and a production publishable
+// key, Clerk auto-enables its Frontend API proxy and serves clerk-js from the
+// same origin at `/__clerk/*`. That only works if the matcher below lets those
+// requests reach this middleware; see the note on the `/__clerk/(.*)` entry.
 export default clerkMiddleware(async (_auth, request) => {
   if (request.method === 'GET' || request.method === 'HEAD') {
     const denied = await denyUnusableShareToken(request);
@@ -62,5 +67,12 @@ export const config = {
     '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     // Always run for API routes
     '/(api|trpc)(.*)',
+    // Always run for Clerk-specific frontend API routes. The first matcher skips
+    // every path ending in `.js`, which includes Clerk's own proxy route
+    // (`/__clerk/npm/@clerk/clerk-js@6/dist/clerk.browser.js`) — so without this
+    // entry the middleware never sees those requests, the proxy never forwards
+    // them to Clerk's Frontend API, and clerk-js fails to load with
+    // `failed_to_load_clerk_js`. See the matcher in Clerk's clerkMiddleware docs.
+    '/__clerk/(.*)',
   ],
 };
