@@ -12,7 +12,8 @@ RUN npm ci
 
 FROM node:24-alpine AS builder
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    BUILD_STANDALONE=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # NEXT_PUBLIC_* vars are inlined at build time — pass them as build args.
@@ -50,7 +51,6 @@ COPY --from=builder --chown=node:node /app/docker-entrypoint.sh ./docker-entrypo
 # default — copy the minimum set from the deps stage.
 COPY --from=deps --chown=node:node /app/node_modules/pg ./node_modules/pg
 COPY --from=deps --chown=node:node /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=deps --chown=node:node /app/node_modules/pg-query-stream ./node_modules/pg-query-stream
 COPY --from=deps --chown=node:node /app/node_modules/pg-connection-string ./node_modules/pg-connection-string
 
 USER node
