@@ -110,6 +110,8 @@ export const MentionNode = Node.create({
   },
 });
 
+import { PluginKey } from "@tiptap/pm/state";
+
 export const MentionSuggestions = Extension.create({
   name: "mentionSuggestions",
 
@@ -135,6 +137,7 @@ export const MentionSuggestions = Extension.create({
     const options = this.options;
     return [
       Suggestion({
+        pluginKey: new PluginKey("mentionSuggestions"),
         editor: this.editor,
         char: MENTION_CHAR,
         // Suggestion's default allowedPrefixes ([" "]) is exactly the guard

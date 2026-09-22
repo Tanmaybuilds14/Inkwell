@@ -168,6 +168,8 @@ export function filterSlashItems(query) {
  * changes to React via callbacks — the menu itself lives in collab-editor,
  * because rendering belongs with the rest of the editor chrome.
  */
+import { PluginKey } from "@tiptap/pm/state";
+
 export const SlashCommand = Extension.create({
   name: "slashCommand",
 
@@ -184,6 +186,7 @@ export const SlashCommand = Extension.create({
   addProseMirrorPlugins() {
     return [
       Suggestion({
+        pluginKey: new PluginKey("slashCommand"),
         editor: this.editor,
         ...this.options.suggestion,
       }),
