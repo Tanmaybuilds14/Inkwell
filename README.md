@@ -136,6 +136,13 @@ pills, remote selections render as translucent bands, an avatar stack in the hea
 who is in the document, an `Editors` rail names them, and a connection pill reports
 `Live` / `Connecting…` / `Reconnecting…` / `Offline — edits saved locally`.
 
+Presence labels carry the **Inkwell display name** — chosen at onboarding, editable on
+`/profile`, the same identity as the header avatar — falling back to Clerk's own name and
+then the email handle. A rename (`inkwell:profile-updated`) reaches live carets without a
+reload, because the name is broadcast over awareness rather than baked into the socket.
+Awareness states without a name render as `User: <clientId>`, which is what a phone-book
+of collaborators becomes when the label is sourced from a profile that has no name yet.
+
 **Authorship runs** underline the text each person contributed, coloured by author —
 and are stripped in `@media print`.
 
@@ -605,6 +612,21 @@ with a single instance you get none of that exercised in production either.
 
 Set `TRUST_PROXY=1` on Vercel/Fly/Railway so share-link throttling can key by client IP.
 Leave it unset when the app is reached directly — the header is attacker-controlled there.
+
+### Clerk production keys on Vercel
+
+With a production publishable key and a `*.vercel.app` host, Clerk enables its Frontend API
+proxy by itself: `ClerkProvider` gets `proxyUrl: '/__clerk'`, and clerk-js loads from the
+same origin instead of Clerk's CDN. `clerkMiddleware` is what forwards `/__clerk/*`
+upstream, which means the proxy only works if the matcher in `src/proxy.js` includes
+`'/__clerk/(.*)'`. The static-file entry rejects every path ending in `.js`, and the ClerkJS
+bundle (`/__clerk/npm/@clerk/clerk-js@6/dist/clerk.browser.js`) is one — drop the entry and
+sign-in dies with `failed_to_load_clerk_js` while everything else looks healthy.
+
+Moving to a custom domain switches the proxy off (it only auto-enables for `*.vercel.app`),
+so clerk-js goes back to Clerk's CDN and the matcher entry stops being load-bearing. To opt
+out on a `*.vercel.app` host anyway, set `CLERK_DISABLE_AUTO_PROXY=1`; you can also pin
+proxying explicitly with `NEXT_PUBLIC_CLERK_PROXY_URL`.
 
 ---
 

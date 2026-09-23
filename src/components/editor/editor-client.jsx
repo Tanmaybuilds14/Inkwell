@@ -20,6 +20,8 @@ import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { OPEN_FAILURE, classifyOpenFailure } from "@/lib/open-failure";
 import { offlineDbName } from "@/lib/offline-docs";
+import { buildPresenceUser, colorFor, resolvePresenceName } from "@/lib/presence";
+import { useProfile } from "@/lib/use-profile";
 // The wire contract lives outside src/ so the sync service can import the same
 // file; the close codes below are its values, not copies of them.
 import { WS_CLOSE_CODES } from "../../../shared/protocol.js";
@@ -33,23 +35,15 @@ const SYNC_WS_URL = process.env.NEXT_PUBLIC_SYNC_WS_URL ?? "ws://localhost:1234"
  */
 const THROTTLE_RETRY_MS = 5_000;
 
-const PRESENCE_COLORS = [
-  "#0ea5e9", "#8b5cf6", "#ec4899", "#f59e0b",
-  "#10b981", "#ef4444", "#6366f1", "#14b8a6",
-];
-
-function colorFor(seed) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  return PRESENCE_COLORS[hash % PRESENCE_COLORS.length];
-}
-
 export function EditorClient({ documentId }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const shareToken = searchParams.get("share");
   const { getToken, isSignedIn } = useAuth();
-  const { user } = useUser();
+  const { isLoaded, user } = useUser();
+  // The Inkwell display name — the identity the header avatar, activity log
+  // and share dialog show. See the presence identity below.
+  const profile = useProfile();
   const { toast } = useToast();
 
   const [doc, setDoc] = useState(null);
@@ -76,7 +70,6 @@ export function EditorClient({ documentId }) {
   const [openedOffline, setOpenedOffline] = useState(false);
   const idbRef = useRef(null);
   const [peers, setPeers] = useState([]);
-  const [selfUser, setSelfUser] = useState(null);
   const [title, setTitle] = useState("");
   const titleTimer = useRef(null);
 
@@ -89,6 +82,41 @@ export function EditorClient({ documentId }) {
   // reconnectGenRef lets a terminal close cancel one that is in flight.
   const reconnectingRef = useRef(false);
   const reconnectGenRef = useRef(0);
+
+  /**
+   * Who we tell collaborators we are.
+   *
+   * A peer renders the name *we* broadcast; without one those pills read
+   * "User: <clientId>" (y-tiptap's placeholder), so a missing name is not
+   * cosmetic. The Inkwell display name comes first — Clerk's client-side
+   * profile has no name at all for an email sign-up, and hydrates later than
+   * the sync socket anyway — then Clerk's own name, then Guest for a share-link
+   * session, then the email handle. It is null only for the moment before
+   * either source answers, and the effect below re-broadcasts it as soon as
+   * one does.
+   */
+  const presenceName = useMemo(
+    () => resolvePresenceName({ profileName: profile?.name, clerkUser: user, isSignedIn, isLoaded }),
+    [profile?.name, user, isSignedIn, isLoaded]
+  );
+  // Guests have no account id, so the document seeds their colour: every
+  // share-link participant keeps a stable colour of their own.
+  const presenceColor = useMemo(
+    () => colorFor(user?.id ?? profile?.id ?? documentId),
+    [user?.id, profile?.id, documentId]
+  );
+  const presence = useMemo(
+    () => buildPresenceUser({ name: presenceName, color: presenceColor }),
+    [presenceName, presenceColor]
+  );
+  // The Editors rail shows you to yourself, so it can always name you.
+  const selfUser = useMemo(
+    () => ({ name: presenceName ?? "You", color: presenceColor }),
+    [presenceName, presenceColor]
+  );
+  // The last identity handed to awareness — and the provider it was handed to,
+  // since a reconnect starts a fresh awareness that has to be told again.
+  const sentPresenceRef = useRef({ provider: null, user: null });
 
   const qs = useMemo(
     () => (shareToken ? `?share=${encodeURIComponent(shareToken)}` : ""),
@@ -230,16 +258,9 @@ export function EditorClient({ documentId }) {
       providerRef.current = wsProvider;
       setProvider(wsProvider);
 
-      const displayName =
-        user?.fullName ?? user?.username ?? (isSignedIn ? null : "Guest");
-      // A signed-in user whose profile hasn't hydrated yet has no name —
-      // send NO user field at all rather than a placeholder, so peers see a
-      // pending cursor (client id) instead of everyone being called "You".
-      const userColor = colorFor(user?.id ?? doc?.id);
-      wsProvider.awareness.setLocalStateField("user",
-        displayName ? { name: displayName, color: userColor } : { color: userColor }
-      );
-      setSelfUser({ name: displayName ?? "You", color: userColor });
+      // Identity is not announced here: the presence effect below owns every
+      // awareness write, so resolving a name (or renaming yourself) updates the
+      // room without the socket being recreated for it.
 
       wsProvider.on("status", ({ status }) => {
         setConnState(
@@ -317,8 +338,35 @@ export function EditorClient({ documentId }) {
         wsProvider.awareness.off("change", onAwarenessChange);
       };
     },
-    [doc?.id, shareToken, ydoc, user, isSignedIn, scheduleReconnect, cancelPendingReconnect]
+    [doc?.id, shareToken, ydoc, scheduleReconnect, cancelPendingReconnect]
   );
+
+  /**
+   * Announce who we are — the single writer of the awareness `user` field.
+   *
+   * It runs on every new provider (a connect or a reconnect starts a pristine
+   * awareness) and on every identity change, which is what makes a late name
+   * work: both sources are late by design — /api/profile is a request, and
+   * Clerk's client profile only exists once clerk-js has loaded — and neither
+   * is a reason to recreate the provider, which would drop the room, the local
+   * sync state and every peer's caret for the sake of a label. Renaming
+   * yourself reaches collaborators by the same path: useProfile re-fetches on
+   * `inkwell:profile-updated`.
+   */
+  useEffect(() => {
+    const active = providerRef.current;
+    if (!active) return;
+    const sent = sentPresenceRef.current;
+    if (
+      sent.provider === active &&
+      sent.user?.name === presence.name &&
+      sent.user?.color === presence.color
+    ) {
+      return;
+    }
+    active.awareness.setLocalStateField("user", presence);
+    sentPresenceRef.current = { provider: active, user: presence };
+  }, [presence, provider]);
 
   // Keep the latest connect() reachable from reconnect handlers without
   // touching refs during render.
@@ -515,6 +563,7 @@ export function EditorClient({ documentId }) {
             ydoc={ydoc}
             provider={provider}
             role={effectiveRole}
+            presence={presence}
           />
         </main>
 

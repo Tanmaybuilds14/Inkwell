@@ -56,7 +56,7 @@ const ROLE_LABELS = {
   VIEWER: "viewer",
 };
 
-export function CollabEditor({ documentId, ydoc, provider, role }) {
+export function CollabEditor({ documentId, ydoc, provider, role, presence }) {
   const providerReady = !!provider;
   const canEdit = role === "OWNER" || role === "EDITOR";
 
@@ -190,10 +190,10 @@ export function CollabEditor({ documentId, ydoc, provider, role }) {
                 ? [
                     CollaborationCaret.configure({
                       provider,
-                      // The provider already set the local user (see editor-client).
-                      // If the profile hasn't hydrated yet, keep just a color — no
-                      // placeholder name that would broadcast "You" to peers.
-                      user: provider?.awareness?.getLocalState()?.user ?? { color: "#44403c" },
+                      // editor-client owns the identity (see the presence effect there):
+                      // the Inkwell display name when it is known, a colour-only state
+                      // until it isn't. Never a placeholder — peers see it verbatim.
+                      user: presence ?? { color: "#44403c" },
                     }),
                     AuthorshipUnderlines.configure({ awareness: provider?.awareness }),
                   ]
