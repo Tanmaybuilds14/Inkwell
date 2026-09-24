@@ -42,6 +42,22 @@
   --inkwell-accent-soft: #f5f5f4;
   --inkwell-muted: #78716c;
   --inkwell-danger: #dc2626;
+
+  /* Collaborator accents — cursors, avatars, dots and highlights only. Never
+     body copy, never a large surface. Deliberately identical in both themes:
+     dark ink on top of each of these clears 4.5:1, so a caret or avatar never
+     depends on the page theme to stay legible. */
+  --collab-1: #f87171;
+  --collab-2: #fbbf24;
+  --collab-3: #2dd4bf;
+  --collab-4: #a78bfa;
+
+  /* Landing-page secondary copy. A step darker than --muted-foreground so long
+     paragraphs clear AA comfortably (7.4:1) instead of scraping past it. */
+  --landing-muted: #57534e;
+
+  /* Mockup hairlines: ink at 8% in the light theme, white at 8% in the dark. */
+  --mockup-line: rgb(0 0 0 / 0.08);
 }
 
 /* ---- Dark theme (.dark on <html>) ---- */
@@ -82,6 +98,9 @@
   --inkwell-accent-soft: #292524;
   --inkwell-muted: #a8a29e;
   --inkwell-danger: #ef4444;
+
+  --landing-muted: #b9b3ae;
+  --mockup-line: rgb(255 255 255 / 0.08);
 }
 
 @theme inline {
@@ -104,6 +123,12 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-landing-muted: var(--landing-muted);
+  --color-collab-1: var(--collab-1);
+  --color-collab-2: var(--collab-2);
+  --color-collab-3: var(--collab-3);
+  --color-collab-4: var(--collab-4);
 
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
@@ -172,19 +197,102 @@ body {
   transform: translateY(0);
 }
 
-/* ---- Typewriter cursor ---- */
+/* ---- Landing: typewriter heading ----
+   The caret is two elements on purpose: the wrapper owns the fade-out when the
+   typing ends, the inner bar owns the blink, so removing the blink cannot
+   fight the fade for the same property. */
 @keyframes blink-cursor {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
-.tw-cursor {
+.tw-caret {
   display: inline-block;
   width: 2px;
   height: 1em;
   margin-left: 2px;
-  background-color: currentColor;
   vertical-align: text-bottom;
-  animation: blink-cursor 0.8s steps(2) infinite;
+  transition: opacity 500ms ease-out;
+}
+.tw-caret-bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: currentColor;
+  animation: blink-cursor 0.9s steps(2) infinite;
+}
+.tw-caret-hidden { opacity: 0; }
+
+/* ---- Landing: collaborator accents ----
+   `.collab-N` only binds the hue to --collab; the two painters below decide
+   how it is applied. Nothing here ever paints text in a collaborator colour. */
+.collab-1 { --collab: var(--collab-1); }
+.collab-2 { --collab: var(--collab-2); }
+.collab-3 { --collab: var(--collab-3); }
+.collab-4 { --collab: var(--collab-4); }
+
+/* Filled in a collaborator colour: avatars and caret name tags. Dark ink on
+   top, which is the only combination that passes AA against all four hues. */
+.collab-fill {
+  background-color: var(--collab);
+  color: #0c0a09;
+}
+
+/* A bare accent: cursor bars and the 6px eyebrow dots. */
+.collab-dot { background-color: var(--collab); }
+
+/* The "something just landed here" tint used by the folder and timeline
+   mockups. The text on top stays the theme's own foreground. */
+.collab-highlight {
+  background-color: color-mix(in srgb, var(--collab) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--collab) 45%, transparent);
+}
+
+/* ---- Landing: floating hero pills ---- */
+@keyframes pill-drift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(var(--drift-x, 6px), var(--drift-y, -8px), 0); }
+}
+.pill-drift {
+  animation: pill-drift var(--drift-duration, 8s) ease-in-out infinite;
+  animation-delay: var(--drift-delay, 0s);
+}
+
+/* ---- Landing: mockup surfaces ----
+   A card one notch lighter than the page (--card is lighter than --background
+   in both themes) behind the same hairline the product's own surfaces use. */
+.mockup-card {
+  background-color: var(--card);
+  border: 1px solid var(--mockup-line);
+}
+.mockup-rule { border-top: 1px solid var(--mockup-line); }
+.mockup-hairline { border: 1px solid var(--mockup-line); }
+
+/* The terminal is a terminal: it stays dark in either theme, like the docs it
+   comes from, and the frame's own border is tuned to sit on that surface. */
+.mockup-surface-dark {
+  background-color: #12100f;
+  border-color: rgb(255 255 255 / 0.1);
+}
+
+.mockup-fade-in { animation: mockup-fade-in 420ms ease-out both; }
+@keyframes mockup-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.mockup-pop { animation: mockup-pop 320ms ease-out both; }
+@keyframes mockup-pop {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ---- Landing: body copy ----
+   17px on a 1.65 line and a 34rem measure, in the darker landing ink so long
+   paragraphs clear AA against the page rather than scraping past it. */
+.landing-body {
+  max-width: 34rem;
+  color: var(--landing-muted);
+  font-size: 17px;
+  line-height: 1.65;
 }
 
 /* ---- Parallax hero ---- */
@@ -192,6 +300,22 @@ body {
   will-change: transform, opacity;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+}
+
+/* ---- Landing: reduced motion ----
+   Scoped to the landing-page pieces this page animates. The hero headline's
+   per-character reveal is left alone deliberately (it is the existing hero). */
+@media (prefers-reduced-motion: reduce) {
+  .pill-drift,
+  .tw-caret-bar,
+  .mockup-fade-in,
+  .mockup-pop {
+    animation: none;
+  }
+  .reveal,
+  .reveal-stagger {
+    transition: none;
+  }
 }
 
 /* ---- Inkwell editor surface ---- */

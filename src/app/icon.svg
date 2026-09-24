@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Inkwell">
+  <defs>
+    <linearGradient id="ink" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c1917" />
+      <stop offset="1" stop-color="#0c0a09" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#ink)" />
+  <rect
+    x="0.8"
+    y="0.8"
+    width="62.4"
+    height="62.4"
+    rx="14.2"
+    fill="none"
+    stroke="#fafaf9"
+    stroke-opacity="0.18"
+    stroke-width="1.6"
+  />
+  <g
+    transform="translate(9 8.5) scale(1.92)"
+    fill="none"
+    stroke="#fafaf9"
+    stroke-width="2.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M12.67 19a2 2 0 0 0 1.416-.588l6.154-6.172a6 6 0 0 0-8.49-8.49L5.586 9.914A2 2 0 0 0 5 11.328V18a1 1 0 0 0 1 1z" />
+    <path d="M16 8 2 22" />
+    <path d="M17.5 15H9" />
+  </g>
+  <circle cx="46" cy="47" r="4.2" fill="#f87171" />
+</svg>

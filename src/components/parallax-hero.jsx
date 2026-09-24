@@ -1,101 +1,107 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
-import Link from "next/link";
-import { Show } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { Feather } from "lucide-react";
 import { AnimatedBackground } from "@/components/animated-background";
 import { AnimatedHeading } from "@/components/animated-heading";
+import { GitHubIcon } from "@/components/github-icon";
+import { GITHUB_URL } from "@/lib/site";
+import { cn } from "@/lib/utils";
 
 /**
- * Floating description cards that drift at different speeds as the user scrolls,
- * replicating the Mobbin homepage parallax effect.
- * Each card has a short heading describing a core feature.
+ * The five capability pills that drift around the hero.
+ *
+ * Each one is pinned to a far edge — both sides, top to bottom — so its closest
+ * approach to the headline block stays comfortably past ~120px at 1366px and
+ * wider (the headline column is 768px wide, which leaves roughly 300px of gutter
+ * either side). Within that envelope each pill drifts ±6–10px on its own slow,
+ * staggered cycle so the group never pulses in unison.
  */
-const FLOATING_CARDS = [
-  { heading: "Real-time sync", x: "4%", y: "12%", speed: 0.12, rotate: -3 },
-  { heading: "Conflict-free editing", x: "78%", y: "8%", speed: 0.22, rotate: 2 },
-  { heading: "Granular permissions", x: "2%", y: "48%", speed: 0.18, rotate: -1 },
-  { heading: "Version snapshots", x: "82%", y: "42%", speed: 0.14, rotate: 3 },
-  { heading: "Live cursors", x: "10%", y: "78%", speed: 0.28, rotate: -2 },
-  { heading: "Folder organization", x: "75%", y: "75%", speed: 0.16, rotate: 1 },
-  { heading: "Guest access", x: "88%", y: "28%", speed: 0.24, rotate: -1.5 },
-  { heading: "Self-hostable", x: "15%", y: "30%", speed: 0.2, rotate: 2.5 },
-  { heading: "Yjs CRDTs", x: "60%", y: "85%", speed: 0.3, rotate: -1 },
-  { heading: "Share links", x: "90%", y: "60%", speed: 0.15, rotate: 1.5 },
+const FLOATING_PILLS = [
+  {
+    label: "Real-time sync",
+    position: "left-3 top-[7%]",
+    x: "8px",
+    y: "-8px",
+    duration: "9s",
+    delay: "0s",
+  },
+  {
+    label: "Conflict-free editing",
+    position: "right-3 top-[15%]",
+    x: "-7px",
+    y: "9px",
+    duration: "10s",
+    delay: "1.2s",
+  },
+  {
+    label: "Version snapshots",
+    position: "left-2 top-[46%]",
+    x: "9px",
+    y: "6px",
+    duration: "8s",
+    delay: "0.6s",
+  },
+  {
+    label: "Guest access",
+    position: "right-4 top-[53%]",
+    x: "-8px",
+    y: "-7px",
+    duration: "7.5s",
+    delay: "2s",
+  },
+  {
+    label: "Self-hostable",
+    position: "left-4 bottom-[9%]",
+    x: "7px",
+    y: "-9px",
+    duration: "8.5s",
+    delay: "1.6s",
+  },
 ];
 
-function FloatingCard({ heading, speed, rotate, style }) {
-  const ref = useRef(null);
-
-  useEffect(() => {
-    let ticking = false;
-
-    const onScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          if (ref.current) {
-            const y = window.scrollY * speed;
-            const opacity = Math.max(0, 1 - window.scrollY / 800);
-            ref.current.style.transform = `translateY(${-y}px) rotate(${rotate}deg)`;
-            ref.current.style.opacity = opacity;
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [speed, rotate]);
-
+/**
+ * `primaryCta` is owned by the page (a server component) rather than rendered
+ * here: Clerk's <Show> needs the server's auth state, and inside this client
+ * boundary it would stay empty until clerk-js finished loading.
+ */
+export function ParallaxHero({ primaryCta }) {
   return (
-    <div
-      ref={ref}
-      className="absolute hidden md:flex items-center will-change-transform"
-      style={style}
-    >
-      <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-md px-5 py-3 shadow-sm">
-        <span className="text-sm font-medium text-foreground/80">{heading}</span>
-      </div>
-    </div>
-  );
-}
-
-export function ParallaxHero() {
-  const cards = useMemo(
-    () =>
-      FLOATING_CARDS.map((c) => ({
-        ...c,
-        style: {
-          left: c.x,
-          top: c.y,
-        },
-      })),
-    []
-  );
-
-  return (
-    <section className="relative flex flex-col items-center overflow-hidden px-6 pt-32 pb-40 text-center md:pt-48 md:pb-52">
+    <section className="relative flex flex-col items-center overflow-hidden px-6 pt-16 pb-24 text-center md:pt-20 md:pb-28">
       {/* Animated dot-grid + gradient background */}
       <AnimatedBackground />
 
-      {/* Floating parallax cards */}
-      {cards.map((card) => (
-        <FloatingCard
-          key={card.heading}
-          heading={card.heading}
-          speed={card.speed}
-          rotate={card.rotate}
-          style={card.style}
-        />
-      ))}
+      {/*
+        Floating pills. Hidden below xl on purpose: the guarantee they carry is
+        that none of them comes within ~120px of the headline block, and below
+        1280px there is no longer a gutter wide enough to honour it (measured:
+        ~40–80px at 1024px, 170px+ from 1280px up).
+      */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 hidden xl:block"
+      >
+        {FLOATING_PILLS.map((pill) => (
+          <div key={pill.label} className={cn("absolute", pill.position)}>
+            <div
+              className="pill-drift rounded-2xl border border-border bg-card/70 px-4 py-2 shadow-sm backdrop-blur-md"
+              style={{
+                "--drift-x": pill.x,
+                "--drift-y": pill.y,
+                "--drift-duration": pill.duration,
+                "--drift-delay": pill.delay,
+              }}
+            >
+              <span className="text-xs font-medium whitespace-nowrap text-landing-muted">
+                {pill.label}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Central hero content — large, editorial typography */}
       <div className="relative z-10 max-w-3xl">
-        <p className="mb-8 text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
+        <p className="mb-6 text-sm font-medium uppercase tracking-[0.2em] text-landing-muted">
           A collaborative document platform
         </p>
         <AnimatedHeading
@@ -105,30 +111,29 @@ export function ParallaxHero() {
           ]}
           delay={0.4}
         />
-        <p className="mx-auto mt-8 max-w-lg text-base leading-relaxed text-muted-foreground md:text-lg">
+        <p className="landing-body mx-auto mt-6">
           Create, organize, share with granular permissions, and co-edit live
           with conflict-free sync. Open source. Self-hostable.
         </p>
-        <div className="mt-12 flex items-center justify-center gap-3">
-          <Show when="signed-out">
-            <Button asChild size="lg">
-              <Link href="/sign-up">Get started</Link>
-            </Button>
-            <Button variant="outline" size="lg" asChild>
-              <Link href="/sign-in">Sign in</Link>
-            </Button>
-          </Show>
-          <Show when="signed-in">
-            <Button asChild size="lg">
-              <Link href="/documents">Open your documents</Link>
-            </Button>
-          </Show>
+        <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+          {primaryCta}
+          <Button
+            variant="outline"
+            size="lg"
+            asChild
+            className="w-full sm:w-auto"
+          >
+            <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+              <GitHubIcon />
+              View on GitHub
+            </a>
+          </Button>
         </div>
       </div>
 
-      {/* Scroll hint */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
-        <span className="text-xs tracking-widest uppercase text-muted-foreground/50">
+      {/* Scroll hint — sits in the hero's own padding, not in a band of its own */}
+      <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
+        <span className="text-xs tracking-widest uppercase text-landing-muted">
           Scroll
         </span>
         <div className="h-8 w-px bg-border animate-pulse" />

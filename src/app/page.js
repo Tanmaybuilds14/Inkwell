@@ -1,119 +1,93 @@
-import Link from "next/link";
-import { Feather } from "lucide-react";
-import { Show } from "@clerk/nextjs";
-import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { ParallaxHero } from "@/components/parallax-hero";
 import { FeatureSection } from "@/components/feature-section";
+import { TypewriterHeading } from "@/components/typewriter-heading";
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import { PrimaryCta } from "@/components/primary-cta";
+import { GITHUB_URL } from "@/lib/site";
+import { CoEditingMockup } from "@/components/mockups/co-editing-mockup";
+import { SharingMockup } from "@/components/mockups/sharing-mockup";
+import { OrganizationMockup } from "@/components/mockups/organization-mockup";
+import { VersionHistoryMockup } from "@/components/mockups/version-history-mockup";
+import { SelfHostMockup } from "@/components/mockups/self-host-mockup";
 
+/**
+ * The feature tour. Five sections, each with a mockup filling the column the
+ * words are not using — "Live Presence" folded into co-editing, because two
+ * carets typing in one paragraph is the same story.
+ */
 const SECTIONS = [
   {
     label: "Real-Time Co-Editing",
-    heading: "Write together, simultaneously.",
-    body: "Multiple people editing the same document at the same time — with no conflicts, no overwrites, no lost work. Inkwell uses Yjs CRDTs to merge every keystroke conflict-free, even when two people type in the same paragraph at the same instant. Edits propagate across horizontally-scaled servers in under 300ms, so everyone sees the same document state no matter which server they're connected to.",
+    heading: "No conflicts. No overwrites.",
+    body: "Everyone edits the same document at once, and every change merges cleanly, even in the same sentence. Colored cursors show who's where, and guests can join from a link without an account.",
     align: "left",
+    mockup: <CoEditingMockup />,
   },
   {
     label: "Sharing & Permissions",
     heading: "Control who sees what.",
-    body: "Share a document with a teammate by email, or generate a public link for anyone. Four permission roles — Owner, Editor, Commenter, Viewer — are enforced server-side on every request and every WebSocket message. Revoke a link and access stops instantly. No one can edit a document they shouldn't be able to see.",
+    body: "Invite teammates by email or create a public link. Choose Owner, Editor, Commenter, or Viewer, and revoke access instantly.",
     align: "right",
+    mockup: <SharingMockup />,
   },
   {
     label: "Document Organization",
     heading: "Keep everything in its place.",
-    body: "Nested folders let you structure your workspace the way you think. Move documents between folders, rename them, search by title. When you delete something it goes to Trash — soft-deleted for 30 days before Inngest background jobs permanently purge it. You can always restore.",
+    body: "Nested folders, quick search, and a 30-day trash, so nothing is lost by accident.",
     align: "left",
+    mockup: <OrganizationMockup />,
   },
   {
     label: "Version History",
     heading: "Go back to any point in time.",
-    body: "Inkwell snapshots your document every few minutes while you edit. Browse the timeline, preview any prior version as rendered HTML, and restore it in one click. The current state is saved first so the restore itself is always undoable. Old snapshots are automatically pruned after 30 days.",
+    body: "Inkwell saves snapshots as you write. Preview any version and restore it in one click, and restores can be undone too.",
     align: "right",
-  },
-  {
-    label: "Live Presence",
-    heading: "See who's here.",
-    body: "Colored cursors with names show exactly where each collaborator is typing. An avatar bar in the header lists everyone currently in the document. Guest collaborators get a random name and color — no account needed, just a share link.",
-    align: "left",
+    mockup: <VersionHistoryMockup />,
   },
   {
     label: "Self-Hostable",
     heading: "Your data, your server.",
-    body: "Inkwell is designed to run on your own infrastructure. The Next.js web app deploys to Vercel, the WebSocket sync service runs on Railway or Fly.io with two or more instances, and PostgreSQL plus Redis handle persistence and cross-server broadcast. Docker Compose files are included for local development.",
-    align: "right",
+    body: "Run Inkwell on your own infrastructure: a Next.js app, a WebSocket sync service, PostgreSQL, and Redis. Docker Compose files are included.",
+    align: "left",
+    mockup: <SelfHostMockup />,
+    // Per the landing-page brief this points at the repository; the how-it-works
+    // page carries the full walkthrough at /how-it-works#self-hosting.
+    link: { label: "Read the setup guide →", href: GITHUB_URL },
   },
 ];
 
 export default function LandingPage() {
   return (
     <main className="flex flex-1 flex-col">
-      {/* Nav */}
-      <nav className="flex items-center justify-between px-6 py-4 md:px-12">
-        <div className="flex items-center gap-2">
-          <Feather className="h-5 w-5" strokeWidth={1.5} />
-          <span className="text-base font-semibold tracking-tight">Inkwell</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <ThemeToggle />
-          <Show when="signed-out">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/sign-in">Sign in</Link>
-            </Button>
-          </Show>
-          <Show when="signed-in">
-            <Button size="sm" asChild>
-              <Link href="/documents">Dashboard</Link>
-            </Button>
-          </Show>
-        </div>
-      </nav>
+      <SiteHeader />
 
-      {/* Hero with floating parallax cards */}
-      <ParallaxHero />
+      {/* Hero with floating drifting pills */}
+      <ParallaxHero primaryCta={<PrimaryCta />} />
 
-      {/* Feature sections — each aspect described in detail */}
-      {SECTIONS.map((s, i) => (
-        <FeatureSection key={s.label} {...s} index={i} />
+      {/* Feature sections — each one pairs its copy with a live-looking mockup */}
+      {SECTIONS.map((section, index) => (
+        <FeatureSection key={section.label} {...section} index={index} />
       ))}
 
       {/* CTA */}
       <ScrollReveal>
-        <section className="border-t border-border px-6 py-24 text-center md:py-32">
-          <h2 className="text-4xl font-light tracking-tight sm:text-5xl">
-            Ready to start?
-          </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
+        <section className="border-t border-border px-6 py-16 text-center md:py-20">
+          <TypewriterHeading
+            text="Ready to start?"
+            className="text-4xl font-light tracking-tight sm:text-5xl"
+          />
+          <p className="landing-body mx-auto mt-4">
             Create your first document in seconds.
           </p>
-          <div className="mt-10">
-            <Show when="signed-out">
-              <Button asChild size="lg">
-                <Link href="/sign-up">Get started for free</Link>
-              </Button>
-            </Show>
-            <Show when="signed-in">
-              <Button asChild size="lg">
-                <Link href="/documents">Go to documents</Link>
-              </Button>
-            </Show>
+          <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+            <PrimaryCta />
           </div>
         </section>
       </ScrollReveal>
 
-      {/* Footer */}
-      <footer className="border-t border-border px-6 py-8">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Feather className="h-4 w-4" strokeWidth={1.5} />
-            <span>Inkwell</span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            A self-hostable collaborative document platform.
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }
