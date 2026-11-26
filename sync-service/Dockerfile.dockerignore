@@ -8,7 +8,10 @@
 !shared
 !sync-service
 
-
+# Host installs are never build inputs — the image runs `npm ci` itself.
+# Keeping them out also stops a local install (hundreds of MB) from being
+# uploaded as build context on every build.
+sync-service/node_modules
 
 # Never bake secrets into an image — inject them at runtime.
 **/.env

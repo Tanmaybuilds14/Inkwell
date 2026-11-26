@@ -13,16 +13,26 @@
 # the same `../../shared/...` relative imports resolve identically here and in
 # local dev. sync-service/Dockerfile.dockerignore keeps the context small.
 #
+# Dependencies are installed INSIDE the image from sync-service/package-lock.json.
+# They must never be copied from the host: `sync-service/node_modules` is
+# gitignored, so a fresh clone (or any checkout that has not run `npm install`
+# in that folder) has no such directory, and the build dies with
+#   failed to compute cache key: ... "/sync-service/node_modules": not found
+#
 # Needs an always-on process — deploy on Railway/Fly/Render (>=2 instances to
 # exercise the Redis cross-server broadcast path), never on serverless.
+
+FROM node:24-alpine AS deps
+WORKDIR /app/sync-service
+COPY sync-service/package.json sync-service/package-lock.json ./
+RUN npm ci --omit=dev
 
 FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     SYNC_PORT=1234
 
-# Copy pre-installed node_modules from host
-COPY sync-service/node_modules ./sync-service/node_modules
+COPY --from=deps /app/sync-service/node_modules ./sync-service/node_modules
 COPY shared ./shared
 COPY sync-service/src ./sync-service/src
 COPY sync-service/package.json ./sync-service/package.json
