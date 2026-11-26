@@ -91,36 +91,29 @@ export function ImportDialog({ open, onOpenChange, folderId = null, onImported }
     setResults(null);
 
     const { accepted, rejected: invalid } = validateFiles(list);
-    setRejected(invalid);
 
-    setFiles((current) => {
-      // De-duplicate by name + size + modified time: dragging the same file
-      // twice should not import two identical documents.
-      const seen = new Set(current.map((f) => `${f.name}:${f.size}:${f.lastModified}`));
-      const merged = [...current];
-      let overflow = 0;
-      for (const file of accepted) {
-        const key = `${file.name}:${file.size}:${file.lastModified}`;
-        if (seen.has(key)) continue;
-        if (merged.length >= IMPORT_LIMITS.maxFiles) {
-          overflow += 1;
-          continue;
-        }
-        seen.add(key);
-        merged.push(file);
+    // De-duplicate by name + size + modified time: dragging the same file
+    // twice should not import two identical documents.
+    const seen = new Set(files.map((f) => `${f.name}:${f.size}:${f.lastModified}`));
+    const merged = [...files];
+    const overflow = [];
+    for (const file of accepted) {
+      const key = `${file.name}:${file.size}:${file.lastModified}`;
+      if (seen.has(key)) continue;
+      if (merged.length >= IMPORT_LIMITS.maxFiles) {
+        overflow.push({
+          name: file.name,
+          error: `You can import at most ${IMPORT_LIMITS.maxFiles} files at once.`,
+        });
+        continue;
       }
-      if (overflow > 0) {
-        setRejected((prev) => [
-          ...prev,
-          ...accepted.slice(-overflow).map((file) => ({
-            name: file.name,
-            error: `You can import at most ${IMPORT_LIMITS.maxFiles} files at once.`,
-          })),
-        ]);
-      }
-      return merged;
-    });
-  }, []);
+      seen.add(key);
+      merged.push(file);
+    }
+
+    setFiles(merged);
+    setRejected([...invalid, ...overflow]);
+  }, [files]);
 
   const removeFile = useCallback((index) => {
     setFiles((current) => current.filter((_, i) => i !== index));

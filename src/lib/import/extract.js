@@ -60,6 +60,9 @@ function looksLikeZip(buffer) {
 
 /** No NULs and few control bytes: safe to treat as a text document. */
 function looksLikeText(buffer) {
+  // UTF-16 text is full of NULs, but the BOM identifies it unambiguously.
+  if (buffer[0] === 0xff && buffer[1] === 0xfe) return true;
+  if (buffer[0] === 0xfe && buffer[1] === 0xff) return true;
   const sample = buffer.subarray(0, 8192);
   if (sample.length === 0) return false;
   let control = 0;
@@ -90,6 +93,15 @@ export function detectImportFormat(filename, buffer) {
     }
     if (byExtension === 'docx' && !looksLikeZip(buffer)) {
       throw new ImportError('This file does not look like a valid DOCX document.', 422);
+    }
+    if (
+      (byExtension === 'text' || byExtension === 'markdown') &&
+      !looksLikeText(buffer)
+    ) {
+      throw new ImportError(
+        'This file does not look like a text document. Import a PDF, DOCX, TXT, or Markdown file.',
+        422
+      );
     }
     return byExtension;
   }

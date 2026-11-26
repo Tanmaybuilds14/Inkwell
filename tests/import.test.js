@@ -110,6 +110,14 @@ describe('format detection', () => {
     expect(() => detectImportFormat('a.docx', bytes('not a zip'))).toThrow(ImportError);
   });
 
+  it('rejects a binary file renamed to .txt but accepts UTF-16 text', () => {
+    expect(() =>
+      detectImportFormat('a.txt', Buffer.from([0x00, 0x01, 0x02, 0x03, 0x00, 0x04]))
+    ).toThrow(/text document/);
+    const utf16 = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('hello', 'utf16le')]);
+    expect(detectImportFormat('a.txt', utf16)).toBe('text');
+  });
+
   it('sniffs files with no extension', () => {
     expect(detectImportFormat('upload', Buffer.from('%PDF-1.4'))).toBe('pdf');
     expect(detectImportFormat('upload', Buffer.from([0x50, 0x4b, 3, 4]))).toBe('docx');
