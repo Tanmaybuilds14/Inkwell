@@ -64,4 +64,4 @@ brag-output/*
 /perf/.perf-docs.json
 /perf/.sync.pid
 /perf/.sync2.pid
-RAG/
+/RAG/
