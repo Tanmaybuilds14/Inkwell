@@ -1,0 +1,291 @@
+import crypto from 'node:crypto';
+import { prisma } from '@/lib/prisma';
+import { handle, apiError, json, requireDocument } from '@/lib/api-helpers';
+import { track, EVENTS } from '@/lib/telemetry';
+import { ROLES } from '@/lib/permissions';
+import { buildCollaborators, COLLABORATOR_SELECT, isPendingUser } from '@/lib/collaborators';
+import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
+import { recordInvite, recordLinkShared } from '@/lib/inbox';
+import { sharePageUrl } from '@/lib/share-page';
+
+const VALID_ROLES = new Set([ROLES.EDITOR, ROLES.COMMENTER, ROLES.VIEWER]);
+
+/** GET — collaborator list + link-sharing status. Owner only. */
+export async function GET(request, { params }) {
+  return handle(async () => {
+    const { id } = await params;
+    const { user } = await requireDocument(request, id, 'OWNER');
+
+    const doc = await prisma.document.findUnique({
+      where: { id },
+      select: {
+        ownerId: true,
+        shareEnabled: true,
+        shareRole: true,
+        shareToken: true,
+        owner: { select: { id: true, name: true, email: true } },
+        permissions: { select: COLLABORATOR_SELECT },
+      },
+    });
+
+    const collaborators = buildCollaborators({
+      owner: doc.owner,
+      permissions: doc.permissions,
+    });
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
+    return json({
+      collaborators,
+      link: shareLinkPayload({ doc, id, appUrl }),
+    });
+  });
+}
+
+/** POST — invite by email with a role. Owner only. */
+export async function POST(request, { params }) {
+  return handle(async () => {
+    const { id } = await params;
+    const { user } = await requireDocument(request, id, 'OWNER');
+
+    const body = await request.json().catch(() => ({}));
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const role = body.role ?? 'VIEWER';
+    if (!email || !email.includes('@')) return apiError(400, 'Valid email is required');
+    if (!VALID_ROLES.has(role)) return apiError(400, 'Invalid role');
+
+    // Provision a pending user row so the permission exists before first
+    // sign-in; ensureUser claims it once the real Clerk account appears.
+    let invitee = await prisma.user.findFirst({ where: { email } });
+    if (!invitee) {
+      invitee = await prisma.user.create({
+        data: { clerkId: `pending_${crypto.randomUUID()}`, email },
+      });
+    }
+
+    const doc = await prisma.document.findUnique({
+      where: { id },
+      select: { title: true, shareEnabled: true, shareToken: true },
+    });
+
+    const permission = await prisma.permission.upsert({
+      where: { documentId_userId: { documentId: id, userId: invitee.id } },
+      update: { role, invitedEmail: email },
+      create: {
+        documentId: id,
+        userId: invitee.id,
+        role,
+        invitedEmail: email,
+        invitedBy: user.id,
+      },
+      // The invitee may already be a real account (re-inviting a signed-up
+      // user), in which case nothing here is pending.
+      select: { id: true, role: true, user: { select: { clerkId: true } } },
+    });
+
+    logActivity(ACTIVITY_TYPES.DOC_SHARED, {
+      userId: user.id,
+      documentId: id,
+      docTitle: doc.title,
+      meta: { email, role: permission.role },
+    });
+
+    // Land the invite in the recipient's inbox. Works even while the user
+    // row is still a pending placeholder — when they first sign in,
+    // ensureUser claims the row by email and the invite is waiting for them.
+    await recordInvite({
+      userId: invitee.id,
+      documentId: id,
+      docTitle: doc.title,
+      inviterId: user.id,
+      inviterName: user.name ?? user.email,
+      role: permission.role,
+    });
+
+    track(EVENTS.DOC_SHARED, {
+      document_id: id,
+      role,
+      invite_type: 'email',
+      actor_id: user.id,
+    });
+
+    await inngestSendInvite({
+      documentId: id,
+      documentTitle: doc.title,
+      inviteeEmail: email,
+      inviterName: user.name ?? user.email,
+      inviterId: user.id,
+      role: permission.role,
+      inviteType: 'email',
+      // Include the link token when link sharing is active so the invite
+      // email can carry ?share=… — a bare /documents/<id> link 404s for
+      // anyone who isn't signed in (or isn't in the permissions table).
+      shareToken: doc.shareEnabled ? doc.shareToken : null,
+    });
+
+    return json(
+      {
+        permission: {
+          permissionId: permission.id,
+          email,
+          role: permission.role,
+          pending: isPendingUser(permission.user),
+        },
+      },
+      { status: 201 }
+    );
+  });
+}
+
+async function inngestSendInvite(data) {
+  try {
+    const { inngest } = await import('@/lib/inngest');
+    await inngest.send({ name: 'inkwell/document.shared', data });
+  } catch (err) {
+    // Best-effort — the permission is already saved; email delivery is
+    // non-critical in dev (Inngest may not be configured).
+    console.warn('[share] Inngest invite send failed:', err.message);
+  }
+}
+
+/** PATCH — change a collaborator's role or manage the share link. Owner only. */
+export async function PATCH(request, { params }) {
+  return handle(async () => {
+    const { id } = await params;
+    const { user, document } = await requireDocument(request, id, 'OWNER');
+    const body = await request.json().catch(() => ({}));
+
+    if ('permissionId' in body) {
+      if (typeof body.role !== 'string' || !VALID_ROLES.has(body.role)) {
+        return apiError(400, 'Invalid role');
+      }
+      const existing = await prisma.permission.findFirst({
+        where: { id: body.permissionId, documentId: id },
+        select: { id: true, userId: true },
+      });
+      if (!existing) return apiError(404, 'Collaborator not found');
+
+      await prisma.permission.update({
+        where: { id: existing.id },
+        data: { role: body.role },
+      });
+      track(EVENTS.DOC_PERMISSION_CHANGED, {
+        document_id: id,
+        permission_id: existing.id,
+        role: body.role,
+      });
+      logActivity(ACTIVITY_TYPES.ACCESS_GRANTED, {
+        userId: user.id,
+        documentId: id,
+        docTitle: document.title,
+        meta: { permissionId: existing.id, role: body.role },
+      });
+      return json({ ok: true });
+    }
+
+    if ('linkEnabled' in body) {
+      const data = {};
+      if (body.linkEnabled) {
+        data.shareEnabled = true;
+        if (typeof body.linkRole === 'string') {
+          if (!VALID_ROLES.has(body.linkRole)) return apiError(400, 'Invalid link role');
+          data.shareRole = body.linkRole;
+        }
+        // Mint a token ONLY when the document has none (first enable).
+        // The token IS the credential embedded in every link the owner has
+        // already copied or emailed — regenerating it on each toggle or role
+        // change instantly breaks all of them ("can't open document" for
+        // every recipient). Revocation below still rotates it.
+        if (!document.shareToken) {
+          data.shareToken = crypto.randomBytes(24).toString('base64url');
+        }
+      } else {
+        // Revoke: disable AND rotate the token — old links die immediately.
+        data.shareEnabled = false;
+        data.shareToken = crypto.randomBytes(24).toString('base64url');
+      }
+
+      const updated = await prisma.document.update({
+        where: { id },
+        data,
+        select: { shareEnabled: true, shareRole: true, shareToken: true },
+      });
+
+      // Link shares are never saved on a recipient's side (the link IS the
+      // credential), but collaborators who already have rows learn about
+      // the newly-active link through their inbox. Revocation is silent —
+      // removing an item would erase the receipt of the original share.
+      if (updated.shareEnabled) {
+        await recordLinkShared({ documentId: id, docTitle: document.title, actorId: user.id });
+      }
+
+      track(
+        body.linkEnabled ? EVENTS.DOC_SHARED : EVENTS.DOC_LINK_REVOKED,
+        { document_id: id, invite_type: 'link', role: updated.shareRole }
+      );
+      logActivity(
+        body.linkEnabled ? ACTIVITY_TYPES.DOC_SHARED_LINK : ACTIVITY_TYPES.DOC_SHARED,
+        {
+          userId: user.id,
+          documentId: id,
+          docTitle: document.title,
+          meta: { link: true, role: updated.shareRole, revoked: !body.linkEnabled },
+        }
+      );
+
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
+      return json({
+        link: shareLinkPayload({ doc: updated, id, appUrl }),
+      });
+    }
+
+    return apiError(400, 'Nothing to update');
+  });
+}
+
+/**
+ * The link-sharing state, in one place so GET and PATCH cannot drift.
+ *
+ * Two URLs, because the link is two different things to two different people:
+ * `url` opens the live editor (guest collaborators welcome), while `pageUrl`
+ * is the server-rendered read-only page that works without an account and
+ * gives link previews something to read.
+ */
+function shareLinkPayload({ doc, id, appUrl }) {
+  if (!doc.shareEnabled) return { enabled: false, role: null, url: null, pageUrl: null };
+  return {
+    enabled: true,
+    role: doc.shareRole,
+    url: `${appUrl}/documents/${id}?share=${doc.shareToken}`,
+    pageUrl: sharePageUrl(doc.shareToken, appUrl),
+  };
+}
+
+/** DELETE — remove a collaborator (?permissionId=...). Owner only. */
+export async function DELETE(request, { params }) {
+  return handle(async () => {
+    const { id } = await params;
+    const { user, document } = await requireDocument(request, id, 'OWNER');
+
+    const url = new URL(request.url);
+    const permissionId = url.searchParams.get('permissionId');
+    if (!permissionId) return apiError(400, 'permissionId is required');
+
+    const deleted = await prisma.permission.deleteMany({
+      where: { id: permissionId, documentId: id },
+    });
+    if (deleted.count === 0) return apiError(404, 'Collaborator not found');
+
+    track(EVENTS.DOC_PERMISSION_CHANGED, {
+      document_id: id,
+      permission_id: permissionId,
+      removed: true,
+    });
+    logActivity(ACTIVITY_TYPES.ACCESS_GRANTED, {
+      userId: user.id,
+      documentId: id,
+      docTitle: document.title,
+      meta: { permissionId, removed: true },
+    });
+    return json({ ok: true });
+  });
+}

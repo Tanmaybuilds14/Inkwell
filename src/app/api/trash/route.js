@@ -1,0 +1,67 @@
+import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
+import { handle, apiError, json } from '@/lib/api-helpers';
+import { logActivity, ACTIVITY_TYPES } from '@/lib/activity';
+
+const TRASH_RETENTION_DAYS = 30;
+
+export async function GET() {
+  return handle(async () => {
+    const user = await getCurrentUser();
+    if (!user) return apiError(401, 'Sign in required');
+
+    const docs = await prisma.document.findMany({
+      where: {
+        ownerId: user.id,
+        deletedAt: { not: null },
+      },
+      select: {
+        id: true,
+        title: true,
+        deletedAt: true,
+        originalFolderId: true,
+      },
+      orderBy: { deletedAt: 'desc' },
+      take: 200,
+    });
+
+    // Compute purgeBefore per-document based on each doc's actual deletedAt.
+    const documents = docs.map((doc) => ({
+      ...doc,
+      purgeBefore: new Date(
+        doc.deletedAt.getTime() + TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000
+      ),
+    }));
+    return json({ documents });
+  });
+}
+
+// Permanently empty the trash (owner only). Individual permanent deletes are
+// handled by DELETE /api/trash with ?docId=...
+export async function DELETE(request) {
+  return handle(async () => {
+    const user = await getCurrentUser();
+    if (!user) return apiError(401, 'Sign in required');
+
+    const url = new URL(request.url);
+    const docId = url.searchParams.get('docId');
+
+    if (docId) {
+      // Scoped by owner so permission checks can't be bypassed by ID guessing.
+      const deleted = await prisma.document.deleteMany({
+        where: { id: docId, ownerId: user.id, deletedAt: { not: null } },
+      });
+      if (deleted.count > 0) {
+        logActivity(ACTIVITY_TYPES.DOC_PURGED, { userId: user.id, documentId: docId });
+      }
+    } else {
+      const deleted = await prisma.document.deleteMany({
+        where: { ownerId: user.id, deletedAt: { not: null } },
+      });
+      if (deleted.count > 0) {
+        logActivity(ACTIVITY_TYPES.DOC_PURGED, { userId: user.id, meta: { count: deleted.count } });
+      }
+    }
+    return json({ ok: true });
+  });
+}

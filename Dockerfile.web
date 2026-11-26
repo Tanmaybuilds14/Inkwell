@@ -1,0 +1,54 @@
+# syntax=docker/dockerfile:1
+
+# ---------- Inkwell web app (Next.js 16, Turbopack) ----------
+# Build:   docker build -f Dockerfile.web -t inkwell-web .
+# Run:     docker run --env-file .env -p 3000:3000 inkwell-web
+
+FROM node:24-alpine AS builder
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    BUILD_STANDALONE=1
+COPY package.json package-lock.json prisma.config.js ./
+COPY prisma ./prisma
+COPY node_modules ./node_modules
+COPY . .
+# NEXT_PUBLIC_* vars are inlined at build time — pass them as build args.
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ARG NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+ARG NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+ARG NEXT_PUBLIC_SYNC_WS_URL=ws://localhost:1234
+ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY \
+    NEXT_PUBLIC_CLERK_SIGN_IN_URL=$NEXT_PUBLIC_CLERK_SIGN_IN_URL \
+    NEXT_PUBLIC_CLERK_SIGN_UP_URL=$NEXT_PUBLIC_CLERK_SIGN_UP_URL \
+    NEXT_PUBLIC_SYNC_WS_URL=$NEXT_PUBLIC_SYNC_WS_URL \
+    NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+RUN npx prisma generate && npm run build
+
+FROM node:24-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+
+# node:24-alpine ships a built-in non-root `node` user — reuse it.
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+# Prisma client is generated into src/generated and traced by standalone output.
+COPY --from=builder --chown=node:node /app/prisma ./prisma
+COPY --from=builder --chown=node:node /app/prisma.config.js ./prisma.config.js
+COPY --from=builder --chown=node:node /app/package.json ./package.json
+COPY --from=builder --chown=node:node /app/docker-entrypoint.sh ./docker-entrypoint.sh
+
+# Native packages (pg, @prisma/adapter-pg) must be present at runtime.
+COPY --chown=node:node node_modules/pg ./node_modules/pg
+COPY --chown=node:node node_modules/@prisma ./node_modules/@prisma
+COPY --chown=node:node node_modules/pg-connection-string ./node_modules/pg-connection-string
+COPY --chown=node:node node_modules/prisma ./node_modules/prisma
+COPY --chown=node:node node_modules/.bin ./node_modules/.bin
+
+USER node
+EXPOSE 3000
+CMD ["./docker-entrypoint.sh"]

@@ -1,0 +1,58 @@
+# S1 — WebSocket handshake / connection storm.
+#
+# Question answered: how many concurrent sync sockets can ONE instance hold,
+# and what does the handshake cost (auth + DB lookup) under that load?
+#
+# Each virtual user runs the real upgrade path (rate limit → auth → room join)
+# and then holds the socket open with `think`. Because a VU stays alive for
+# `think` seconds, the number of concurrent sockets produced by a phase is
+# roughly: arrivalRate × think. The phases below therefore ramp 60 → 120 → 300
+# → 500 → 1000 sockets without needing an explicit concurrency knob.
+#
+# This config does NOT send Yjs frames — that is S2, driven by
+# perf/harness/editors.mjs, which speaks the binary protocol properly.
+#
+# Run (sync service must be started with PERF_TEST=1 PERF_TEST_STUB_CLERK=1):
+#   node perf/seed.mjs
+#   npm run perf:s1
+#   npm run perf:s1 -- --output perf/results/s1.json
+#
+# Notes
+#  - The handshake throttle (30 connects/60s per IP) is bypassed by PERF_TEST=1.
+#    WITHOUT that flag this config is throttled into close code 4408 within
+#    seconds — that is the point of the flag, not a bug in the config.
+#  - Run Artillery from a different machine than the service if you want the
+#    latency numbers to mean anything.
+
+config:
+  target: "ws://localhost:1234"
+  processor: "./processors.mjs"
+  phases:
+    - name: "warm-up — ~60 sockets"
+      duration: 20
+      arrivalRate: 1
+    - name: "step 1 — ~120 sockets"
+      duration: 40
+      arrivalRate: 2
+    - name: "step 2 — ~300 sockets"
+      duration: 60
+      arrivalRate: 5
+    - name: "step 3 — ~500 sockets"
+      duration: 60
+      arrivalRate: 8
+    - name: "step 4 — ~1000 sockets"
+      duration: 60
+      arrivalRate: 15
+    - name: "cooldown"
+      duration: 20
+      arrivalRate: 1
+
+scenarios:
+  - name: "hold a sync socket open"
+    engine: ws
+    flow:
+      - function: "pickDoc"
+      - connect: "{{ target }}/ws?docId={{ docId }}&token={{ token }}"
+      # A VU that connects and listens: this is the browser tab that is open
+      # but idle. 60s of think = 60s of held socket.
+      - think: 60

@@ -1,0 +1,219 @@
+// Inkwell — Real-Time Collaborative Document Platform
+// Schema versioned from Phase 1; later phases add fields with safe defaults.
+
+generator prisma-client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  runtime      = "nodejs"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  OWNER
+  EDITOR
+  COMMENTER
+  VIEWER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile settings (Phase 4)
+  imageUrl    String?
+  onboardedAt DateTime?
+
+  ownedDocuments Document[]        @relation("DocumentOwner")
+  folders        Folder[]          @relation("FolderOwner")
+  permissions    Permission[]      @relation("UserPermissions")
+  versions       VersionSnapshot[] @relation("UserVersions")
+  activity       ActivityEvent[]   @relation("UserActivity")
+  inboxItems     InboxItem[]       @relation("UserInbox")
+  inboxInvites   InboxItem[]       @relation("InboxInviter")
+  chatThreads    ChatThread[]
+
+  @@index([email])
+}
+
+model Folder {
+  id        String     @id @default(cuid())
+  name      String
+  ownerId   String
+  owner     User       @relation("FolderOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    Folder?    @relation("FolderNesting", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Folder[]   @relation("FolderNesting")
+  documents Document[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([ownerId])
+}
+
+model Document {
+  id       String  @id @default(cuid())
+  title    String  @default("Untitled")
+  ownerId  String
+  owner    User    @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  folderId String?
+  folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  // Yjs CRDT state (Phase 2)
+  snapshot    Bytes?
+  stateVector Bytes?
+
+  // Soft delete / trash (Phase 1)
+  deletedAt        DateTime?
+  originalFolderId String?
+
+  // Link sharing — signed revocable token, not the document ID (Phase 3)
+  shareToken   String? @unique
+  shareRole    Role    @default(VIEWER)
+  shareEnabled Boolean @default(false)
+
+  schemaVersion Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  permissions Permission[]
+  versions    VersionSnapshot[]
+  chunks      DocumentChunk[]
+  indexState  DocumentIndexState?
+
+  @@index([ownerId, deletedAt])
+  @@index([folderId])
+  @@index([updatedAt])
+}
+
+model Permission {
+  id           String   @id @default(cuid())
+  documentId   String
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation("UserPermissions", fields: [userId], references: [id], onDelete: Cascade)
+  role         Role     @default(VIEWER)
+  invitedEmail String?
+  invitedBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([documentId, userId])
+  @@index([userId])
+}
+
+model ActivityEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("UserActivity", fields: [userId], references: [id], onDelete: Cascade)
+  type       String
+  documentId String?
+  docTitle   String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model VersionSnapshot {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  snapshot   Bytes
+  title      String?
+  createdBy  String?
+  creator    User?    @relation("UserVersions", fields: [createdBy], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+
+  @@index([documentId, createdAt])
+}
+
+// ---- RAG chatbot (RAG/PLAN.md §5) ----
+// Ownership is deliberately NOT denormalised here: every retrieval query
+// joins Document and filters ownerId, so an ownership transfer takes effect
+// immediately without a re-index.
+model DocumentChunk {
+  id                  String   @id @default(cuid())
+  documentId          String
+  document            Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex          Int
+  content             String
+  headingPath         String?
+  charStart           Int?
+  charEnd             Int?
+  tokenCount          Int?
+  contentHash         String
+  embedding           Unsupported("vector(1024)")?
+  embeddingModel      String?
+  embeddingDimensions Int?
+  createdAt           DateTime @default(now())
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
+  @@index([embeddingModel, embeddingDimensions])
+}
+
+model DocumentIndexState {
+  documentId          String   @id
+  document            Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  status              String   @default("pending")
+  contentHash         String?
+  embeddingModel      String?
+  embeddingDimensions Int?
+  chunkCount          Int      @default(0)
+  indexedAt           DateTime?
+  lastError           String?
+  updatedAt           DateTime @updatedAt
+}
+
+model ChatThread {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  scope     Json?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  messages  ChatMessage[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+}
+
+model ChatMessage {
+  id        String     @id @default(cuid())
+  threadId  String
+  thread    ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  role      String
+  content   String
+  citations Json?
+  model     String?
+  createdAt DateTime   @default(now())
+
+  @@index([threadId, createdAt])
+}
+
+model InboxItem {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("UserInbox", fields: [userId], references: [id], onDelete: Cascade)
+  type       String
+  // Denormalized display fields — survives document deletion/purge.
+  documentId String?
+  docTitle   String?
+  inviterId  String?
+  inviter    User?    @relation("InboxInviter", fields: [inviterId], references: [id], onDelete: SetNull)
+  meta       Json?
+  readAt     DateTime?
+  claimedAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
+}

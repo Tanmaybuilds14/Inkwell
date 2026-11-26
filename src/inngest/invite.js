@@ -1,0 +1,72 @@
+import { inngest } from '@/lib/inngest';
+import { prisma } from '@/lib/prisma';
+
+/**
+ * Sends a share-invite email with automatic retries (Inngest handles backoff).
+ * Email is sent via Resend when RESEND_API_KEY is configured; otherwise the
+ * invite is logged so local dev works without an email provider.
+ */
+export const sendInviteEmail = inngest.createFunction(
+  {
+    id: 'send-invite-email',
+    name: 'Send invite email',
+    retries: 5,
+    triggers: [{ event: 'inkwell/document.shared' }],
+  },
+  async ({ event, step }) => {
+    const { documentId, inviteeEmail, inviterName, documentTitle, role, inviteType } = event.data;
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    // The email link must include the document's share token: an invited
+    // person who isn't signed in yet has no session, and a bare
+    // /documents/<id> URL 404s for them ("Can't open this document").
+    // With the token in the query, both the REST fetch and the WebSocket
+    // handshake authorize the guest immediately.
+    const shareTokenParam =
+      typeof event.data.shareToken === 'string' && event.data.shareToken.length > 0
+        ? `?share=${encodeURIComponent(event.data.shareToken)}`
+        : '';
+    const link =
+      inviteType === 'link'
+        ? event.data.url
+        : `${appUrl}/documents/${documentId}${shareTokenParam}`;
+
+    await step.run('send-email', async () => {
+      const subject = `${inviterName ?? 'Someone'} invited you to "${documentTitle}" on Inkwell`;
+      const html = `
+        <p>Hi,</p>
+        <p><strong>${inviterName ?? 'Someone'}</strong> shared the document
+        <strong>"${documentTitle}"</strong> with you as a <strong>${role.toLowerCase()}</strong>.</p>
+        <p><a href="${link}">Open the document</a></p>
+      `;
+
+      if (!process.env.RESEND_API_KEY) {
+        console.log(`[invite-email] (dev log) To: ${inviteeEmail} | ${subject} | ${link}`);
+        return { delivered: false, reason: 'no_resend_api_key' };
+      }
+
+      const { Resend } = await import('resend');
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const result = await resend.emails.send({
+        from: process.env.EMAIL_FROM ?? 'Inkwell <onboarding@resend.dev>',
+        to: inviteeEmail,
+        subject,
+        html,
+      });
+      return { delivered: true, id: result.data?.id };
+    });
+
+    // Keep a durable record of who sent the invite (invitedEmail is already
+    // set by the share route; stamp invitedBy on any row missing it).
+    if (inviteType === 'email') {
+      await step.run('mark-invited', async () => {
+        await prisma.permission.updateMany({
+          where: { documentId, invitedEmail: inviteeEmail, invitedBy: null },
+          data: { invitedBy: event.data.inviterId },
+        });
+      });
+    }
+
+    return { ok: true };
+  }
+);

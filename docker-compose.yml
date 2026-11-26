@@ -1,0 +1,99 @@
+# docker compose --profile app up --build  builds the full application
+services:
+  postgres:
+    # pgvector build of Postgres 16 — the RAG index needs the `vector`
+    # extension (RAG/PLAN.md §5.3). Plain postgres:16-alpine has no pgvector.
+    image: pgvector/pgvector:0.8.7-pg16
+    ports:
+      # 5433 on the host: 5432 is commonly taken by another local Postgres.
+      # DATABASE_URL must use 127.0.0.1 (not "localhost") — on Windows that
+      # name resolves to ::1 first and the published port is IPv4-only.
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: inkwell
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d inkwell"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # Full local stack: docker compose --profile app up --build
+  sync:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: sync-service/Dockerfile
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/inkwell?schema=public
+      SYNC_PORT: "1234"
+      PERF_TEST: "1"
+      PERF_TEST_STUB_CLERK: "1"
+    ports:
+      - "1234:1234"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  # Two sync instances to exercise cross-server broadcast locally.
+  sync2:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: sync-service/Dockerfile
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/inkwell?schema=public
+      SYNC_PORT: "1234"
+      PERF_TEST: "1"
+      PERF_TEST_STUB_CLERK: "1"
+    ports:
+      - "1235:1234"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  web:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+        NEXT_PUBLIC_SYNC_WS_URL: ws://localhost:1234
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/inkwell?schema=public
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      sync:
+        condition: service_started
+volumes:
+  pgdata:

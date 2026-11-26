@@ -1,0 +1,67 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+# Playwright: failure traces/screenshots and the HTML report
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files — commit .env.example, ignore the rest
+.env
+.env.local
+.env.*.local
+.env.production
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+.freebuff
+scripts
+next-env.d.ts
+.opencode/*
+sync-service/node_modules
+.claude/*.agents/*
+
+# brag launch-video output — scratch renders, snapshots and music cues stay out,
+# but the delivered video, poster, caption and the composition that renders them
+# are part of the repo (see README > Launch video).
+brag-output/*
+
+
+# perf test artifacts — fixtures, pids and run results are regenerated per run
+/perf/results/
+/perf/.perf-docs.json
+/perf/.sync.pid
+/perf/.sync2.pid
+RAG

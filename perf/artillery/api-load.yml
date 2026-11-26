@@ -1,0 +1,69 @@
+# S3 — Next.js HTTP surface (baseline).
+#
+# The sync service is not the only thing users touch: the dashboard, share
+# pages and REST calls run through Next.js. This config measures those.
+#
+# Run (web app started with PERF_TEST=1 so the per-user write/create buckets
+# do not throttle a load generator):
+#   npm run build && PERF_TEST=1 npm start        # or: npm run dev
+#   npm run perf:s3
+#   npm run perf:s3 -- --output perf/results/s3.json
+#
+# Signed-in numbers need a session cookie from a real Clerk test user:
+#   PERF_COOKIE="__session=..." npm run perf:s3
+# Without PERF_COOKIE the "signed-in" scenario still runs, but it measures the
+# unauthenticated redirect/401 path instead of the dashboard render.
+
+config:
+  target: "http://localhost:3000"
+  processor: "./processors.mjs"
+  phases:
+    - name: "warm-up — 5 rps"
+      duration: 20
+      arrivalRate: 5
+    - name: "steady — 20 rps"
+      duration: 120
+      arrivalRate: 20
+    - name: "spike — 50 rps"
+      duration: 60
+      arrivalRate: 50
+  defaults:
+    headers:
+      accept: "text/html,application/json"
+
+scenarios:
+  - name: "public landing page"
+    weight: 3
+    flow:
+      - get:
+          url: "/"
+          expect:
+            - statusCode: 200
+
+  - name: "sign-in page (redirects to Clerk)"
+    weight: 1
+    flow:
+      - get:
+          url: "/sign-in"
+          expect:
+            # Clerk renders 200 for a same-domain page; a deployment that
+            # redirects to the hosted sign-in returns 302/307.
+            - statusCode: [200, 302, 307]
+
+  - name: "signed-in dashboard + documents API"
+    weight: 2
+    flow:
+      - function: "pickDocAuthed"
+      - get:
+          url: "/documents"
+          headers:
+            cookie: "{{ cookie }}"
+          expect:
+            - statusCode: [200, 302, 307]
+      - get:
+          url: "/api/documents"
+          headers:
+            cookie: "{{ cookie }}"
+          expect:
+            # 401 when no PERF_COOKIE was supplied — reported rather than hidden.
+            - statusCode: [200, 401, 302]

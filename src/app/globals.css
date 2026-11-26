@@ -1,0 +1,563 @@
+@import "tailwindcss";
+
+/* Enables class-based dark mode: .dark on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---- Light theme (default) ---- */
+:root {
+  --background: #fafaf9;
+  --foreground: #1c1917;
+
+  --card: #ffffff;
+  --card-foreground: #1c1917;
+
+  --popover: #ffffff;
+  --popover-foreground: #1c1917;
+
+  --primary: #18181b;
+  --primary-foreground: #fafaf9;
+
+  --secondary: #f5f5f4;
+  --secondary-foreground: #1c1917;
+
+  --muted: #f5f5f4;
+  --muted-foreground: #78716c;
+
+  --accent: #f5f5f4;
+  --accent-foreground: #1c1917;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #fafaf9;
+
+  --border: #e7e5e4;
+  --input: #e7e5e4;
+  --ring: #18181b;
+
+  /* Inkwell-specific tokens */
+  --inkwell-paper: #ffffff;
+  --inkwell-ink: #1c1917;
+  --inkwell-line: #e7e5e4;
+  --inkwell-accent: #18181b;
+  --inkwell-accent-hover: #27272a;
+  --inkwell-accent-soft: #f5f5f4;
+  --inkwell-muted: #78716c;
+  --inkwell-danger: #dc2626;
+
+  /* Collaborator accents — cursors, avatars, dots and highlights only. Never
+     body copy, never a large surface. Deliberately identical in both themes:
+     dark ink on top of each of these clears 4.5:1, so a caret or avatar never
+     depends on the page theme to stay legible. */
+  --collab-1: #f87171;
+  --collab-2: #fbbf24;
+  --collab-3: #2dd4bf;
+  --collab-4: #a78bfa;
+
+  /* Landing-page secondary copy. A step darker than --muted-foreground so long
+     paragraphs clear AA comfortably (7.4:1) instead of scraping past it. */
+  --landing-muted: #57534e;
+
+  /* Mockup hairlines: ink at 8% in the light theme, white at 8% in the dark. */
+  --mockup-line: rgb(0 0 0 / 0.08);
+}
+
+/* ---- Dark theme (.dark on <html>) ---- */
+.dark {
+  --background: #0c0a09;
+  --foreground: #fafaf9;
+
+  --card: #1c1917;
+  --card-foreground: #fafaf9;
+
+  --popover: #1c1917;
+  --popover-foreground: #fafaf9;
+
+  --primary: #fafaf9;
+  --primary-foreground: #18181b;
+
+  --secondary: #292524;
+  --secondary-foreground: #fafaf9;
+
+  --muted: #1c1917;
+  --muted-foreground: #a8a29e;
+
+  --accent: #292524;
+  --accent-foreground: #fafaf9;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #fafaf9;
+
+  --border: #292524;
+  --input: #292524;
+  --ring: #fafaf9;
+
+  --inkwell-paper: #1c1917;
+  --inkwell-ink: #fafaf9;
+  --inkwell-line: #292524;
+  --inkwell-accent: #fafaf9;
+  --inkwell-accent-hover: #e7e5e4;
+  --inkwell-accent-soft: #292524;
+  --inkwell-muted: #a8a29e;
+  --inkwell-danger: #ef4444;
+
+  --landing-muted: #b9b3ae;
+  --mockup-line: rgb(255 255 255 / 0.08);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-landing-muted: var(--landing-muted);
+  --color-collab-1: var(--collab-1);
+  --color-collab-2: var(--collab-2);
+  --color-collab-3: var(--collab-3);
+  --color-collab-4: var(--collab-4);
+
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth theme transition — only for backgrounds and borders */
+* {
+  transition-property: background-color, border-color;
+  transition-duration: 150ms;
+}
+
+/* ---- Scroll reveal animations ---- */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.08s; }
+.reveal-delay-2 { transition-delay: 0.16s; }
+.reveal-delay-3 { transition-delay: 0.24s; }
+.reveal-delay-4 { transition-delay: 0.32s; }
+.reveal-delay-5 { transition-delay: 0.4s; }
+
+/* Fade in for staggered children */
+.reveal-stagger {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal-stagger.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---- Animated heading (remocn-inspired Soft Blur In + Tracking In) ---- */
+.ah-char {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(10px);
+  transform: translateY(12px);
+  transition:
+    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--ah-delay, 0s);
+  will-change: opacity, filter, transform;
+}
+
+.ah-char-visible {
+  opacity: 1;
+  filter: blur(0);
+  transform: translateY(0);
+}
+
+/* ---- Landing: typewriter heading ----
+   The caret is two elements on purpose: the wrapper owns the fade-out when the
+   typing ends, the inner bar owns the blink, so removing the blink cannot
+   fight the fade for the same property. */
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.tw-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  transition: opacity 500ms ease-out;
+}
+.tw-caret-bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: currentColor;
+  animation: blink-cursor 0.9s steps(2) infinite;
+}
+.tw-caret-hidden { opacity: 0; }
+
+/* ---- Landing: collaborator accents ----
+   `.collab-N` only binds the hue to --collab; the two painters below decide
+   how it is applied. Nothing here ever paints text in a collaborator colour. */
+.collab-1 { --collab: var(--collab-1); }
+.collab-2 { --collab: var(--collab-2); }
+.collab-3 { --collab: var(--collab-3); }
+.collab-4 { --collab: var(--collab-4); }
+
+/* Filled in a collaborator colour: avatars and caret name tags. Dark ink on
+   top, which is the only combination that passes AA against all four hues. */
+.collab-fill {
+  background-color: var(--collab);
+  color: #0c0a09;
+}
+
+/* A bare accent: cursor bars and the 6px eyebrow dots. */
+.collab-dot { background-color: var(--collab); }
+
+/* The "something just landed here" tint used by the folder and timeline
+   mockups. The text on top stays the theme's own foreground. */
+.collab-highlight {
+  background-color: color-mix(in srgb, var(--collab) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--collab) 45%, transparent);
+}
+
+/* ---- Landing: floating hero pills ---- */
+@keyframes pill-drift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(var(--drift-x, 6px), var(--drift-y, -8px), 0); }
+}
+.pill-drift {
+  animation: pill-drift var(--drift-duration, 8s) ease-in-out infinite;
+  animation-delay: var(--drift-delay, 0s);
+}
+
+/* ---- Landing: mockup surfaces ----
+   A card one notch lighter than the page (--card is lighter than --background
+   in both themes) behind the same hairline the product's own surfaces use. */
+.mockup-card {
+  background-color: var(--card);
+  border: 1px solid var(--mockup-line);
+}
+.mockup-rule { border-top: 1px solid var(--mockup-line); }
+.mockup-hairline { border: 1px solid var(--mockup-line); }
+
+/* The terminal is a terminal: it stays dark in either theme, like the docs it
+   comes from, and the frame's own border is tuned to sit on that surface. */
+.mockup-surface-dark {
+  background-color: #12100f;
+  border-color: rgb(255 255 255 / 0.1);
+}
+
+.mockup-fade-in { animation: mockup-fade-in 420ms ease-out both; }
+@keyframes mockup-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.mockup-pop { animation: mockup-pop 320ms ease-out both; }
+@keyframes mockup-pop {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ---- Landing: body copy ----
+   17px on a 1.65 line and a 34rem measure, in the darker landing ink so long
+   paragraphs clear AA against the page rather than scraping past it. */
+.landing-body {
+  max-width: 34rem;
+  color: var(--landing-muted);
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+/* ---- Parallax hero ---- */
+.parallax-card {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* ---- Landing: reduced motion ----
+   Scoped to the landing-page pieces this page animates. The hero headline's
+   per-character reveal is left alone deliberately (it is the existing hero). */
+@media (prefers-reduced-motion: reduce) {
+  .pill-drift,
+  .tw-caret-bar,
+  .mockup-fade-in,
+  .mockup-pop {
+    animation: none;
+  }
+  .reveal,
+  .reveal-stagger {
+    transition: none;
+  }
+}
+
+/* ---- Inkwell editor surface ---- */
+.inkwell-editor .ProseMirror {
+  min-height: 60vh;
+  outline: none;
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.inkwell-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  pointer-events: none;
+  height: 0;
+}
+
+.inkwell-editor .ProseMirror h1 { font-size: 1.9rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+.inkwell-editor .ProseMirror h2 { font-size: 1.5rem; font-weight: 650; margin: 0.9rem 0 0.45rem; }
+.inkwell-editor .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; margin: 0.8rem 0 0.4rem; }
+.inkwell-editor .ProseMirror ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+.inkwell-editor .ProseMirror ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+.inkwell-editor .ProseMirror blockquote {
+  border-left: 2px solid var(--border);
+  padding-left: 1rem;
+  color: var(--muted-foreground);
+  margin: 0.75rem 0;
+}
+.inkwell-editor .ProseMirror pre {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  margin: 0.75rem 0;
+}
+.inkwell-editor .ProseMirror code { font-family: var(--font-mono); font-size: 0.9em; }
+
+/* ---- @mentions ----
+   The node renders in the editor, in copied text and on the public share page
+   (which reuses this same .inkwell-editor surface), so the styling lives with
+   the editor rules rather than in a component. */
+.inkwell-editor .ProseMirror .inkwell-mention {
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  padding: 0.05rem 0.3rem;
+  font-weight: 500;
+  white-space: nowrap;
+  /* A person reference, not prose: never let it break across lines. */
+  box-decoration-break: clone;
+}
+
+.inkwell-editor .ProseMirror .inkwell-mention::selection {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* ---- To-do (task) lists ---- */
+.inkwell-editor .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.inkwell-editor .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.inkwell-editor .ProseMirror ul[data-type="taskList"] li > label {
+  flex: 0 0 auto;
+  margin-top: 0.3rem;
+  user-select: none;
+}
+.inkwell-editor .ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.inkwell-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.inkwell-editor .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+
+/* ---- Tables ---- */
+.inkwell-editor .ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0.75rem 0;
+  overflow: hidden;
+}
+.inkwell-editor .ProseMirror table td,
+.inkwell-editor .ProseMirror table th {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  vertical-align: top;
+  position: relative;
+}
+.inkwell-editor .ProseMirror table th {
+  background: var(--muted);
+  font-weight: 600;
+  text-align: left;
+}
+.inkwell-editor .ProseMirror table p { margin: 0; }
+.inkwell-editor .ProseMirror .selectedCell:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  pointer-events: none;
+}
+.inkwell-editor .ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--primary);
+  pointer-events: none;
+}
+.inkwell-editor .ProseMirror.resize-cursor { cursor: col-resize; }
+
+/* ---- Images ---- */
+.inkwell-editor .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+.inkwell-editor .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---- Slash command menu ---- */
+.slash-menu-shadow { box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.35); }
+
+/* Code language badge (see SlashCodeLanguage below) */
+.code-lang-badge {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+/* ---- highlight.js theme (works in light & dark via CSS vars) ---- */
+/* Base token colors: muted slate in light, brighter in dark. */
+.hljs-comment, .hljs-quote { color: var(--muted-foreground); font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-section { color: #8250df; }
+.dark .hljs-keyword, .dark .hljs-selector-tag, .dark .hljs-literal, .dark .hljs-section { color: #b392f0; }
+.hljs-string, .hljs-regexp, .hljs-addition, .hljs-attribute { color: #0a7d3f; }
+.dark .hljs-string, .dark .hljs-regexp, .dark .hljs-addition, .dark .hljs-attribute { color: #7ee787; }
+.hljs-number, .hljs-variable, .hljs-template-variable, .hljs-type { color: #b35900; }
+.dark .hljs-number, .dark .hljs-variable, .dark .hljs-template-variable, .dark .hljs-type { color: #ffa657; }
+.hljs-title, .hljs-title.function_, .hljs-name { color: #0550ae; }
+.dark .hljs-title, .dark .hljs-title.function_, .dark .hljs-name { color: #79c0ff; }
+.hljs-built_in, .hljs-class .hljs-title { color: #953800; }
+.dark .hljs-built_in, .dark .hljs-class .hljs-title { color: #ffa657; }
+.hljs-meta, .hljs-deletion { color: #cf222e; }
+.dark .hljs-meta, .dark .hljs-deletion { color: #ff7b72; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* Collaborator carets — tiptap v3 emits .collaboration-carets__* */
+.collaboration-carets__caret {
+  position: relative;
+  border-left: 2px solid;
+  border-right: 2px solid;
+  margin-left: -1px;
+  margin-right: -1px;
+  pointer-events: none;
+  word-break: normal;
+}
+.collaboration-carets__label {
+  position: absolute;
+  top: -1.35em;
+  left: -2px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 1px 6px;
+  border-radius: 4px 4px 4px 0;
+  color: #fff;
+  user-select: none;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Remote selections: soft tint instead of the solid band */
+.collaboration-carets__selection {
+  mix-blend-mode: multiply;
+}
+.dark .collaboration-carets__selection {
+  mix-blend-mode: screen;
+}
+
+/* Per-user authorship underlines (see components/editor/authorship.js) */
+.inkwell-editor .ProseMirror .author-underline {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+@media print {
+  .inkwell-editor .ProseMirror .author-underline { text-decoration: none; }
+}
+
+/* Version-history preview surface */
+.version-preview .ProseMirror { min-height: unset; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+
+/* Radix UI animations */
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes zoom-in { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes zoom-out { from { transform: scale(1); opacity: 1; } to { transform: scale(0.96); opacity: 0; } }
+
+.animate-in { animation-duration: 200ms; animation-fill-mode: both; }
+.animate-out { animation-duration: 200ms; animation-fill-mode: both; }
+.fade-in-0 { animation-name: fade-in; }
+.fade-out-0 { animation-name: fade-out; }
+.zoom-in-95 { animation-name: zoom-in; }
+.zoom-out-95 { animation-name: zoom-out; }
+
+@keyframes slide-in-from-left { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes slide-out-to-left { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+.slide-in-from-left { animation-name: slide-in-from-left; }
+.slide-out-to-left { animation-name: slide-out-to-left; }

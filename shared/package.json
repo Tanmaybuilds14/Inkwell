@@ -1,0 +1,6 @@
+{
+  "name": "@inkwell/shared",
+  "private": true,
+  "type": "module",
+  "description": "Wire contract shared by the Next.js app and the sync service. Not a published package — imported by relative path from both runtimes."
+}

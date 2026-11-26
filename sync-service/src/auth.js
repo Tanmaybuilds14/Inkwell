@@ -1,0 +1,129 @@
+import { verifyToken } from '@clerk/backend';
+import {
+  getDocumentForAuth,
+  getUserByClerkId,
+  getUserRoleForDocument,
+} from './db.js';
+import { AUTH_CODES } from '../../shared/protocol.js';
+import { ROLES } from '../../shared/roles.js';
+import { timingSafeEqual } from '../../shared/timing-safe.js';
+import { PERF_TEST, PERF_TEST_STUB_CLERK } from '../../shared/perf-test.js';
+
+const GUEST_NAMES = ['Guest Wren', 'Guest Finch', 'Guest Heron', 'Guest Swift', 'Guest Lark'];
+
+/**
+ * Validates a WebSocket handshake and resolves the caller's role for the
+ * document. Two paths:
+ *   1. Clerk JWT (signed-in users) — the same token the web app validates.
+ *   2. Share link token (guest collaborators).
+ *
+ * Fail-closed: any error denies access.
+ */
+export async function authenticateHandshake({ docId, token, shareToken }) {
+  if (!docId) return { ok: false, code: AUTH_CODES.INVALID, reason: 'docId is required' };
+
+  const doc = await getDocumentForAuth(docId);
+  if (!doc || doc.deletedAt) {
+    return { ok: false, code: AUTH_CODES.NOT_FOUND, reason: 'Document not found' };
+  }
+
+  // Path 1: signed-in user.
+  if (token) {
+    // ---- PERF TEST PATH ----
+    // Only when PERF_TEST=1 AND PERF_TEST_STUB_CLERK=1: skip the Clerk JWT
+    // verification (a network round-trip per handshake) and treat any caller
+    // presenting a token as the document OWNER with a deterministic test
+    // identity derived from the token string. Never active in production —
+    // and authorization still flows through the same role/room code, so the
+    // rooms, edit gating and persistence paths under test are the real ones.
+    if (PERF_TEST_STUB_CLERK) {
+      const testUserId = `perf_${Buffer.from(token).toString('hex').slice(0, 24)}`;
+      return {
+        ok: true,
+        identity: {
+          userId: testUserId,
+          name: `Perf User ${testUserId.slice(-4)}`,
+          color: colorFor(testUserId),
+          guest: false,
+          imageUrl: null,
+        },
+        role: ROLES.OWNER,
+      };
+    }
+    try {
+      const claims = await verifyToken(token, {
+        secretKey: process.env.CLERK_SECRET_KEY,
+      });
+      const user = await getUserByClerkId(claims.sub);
+      if (!user) return { ok: false, code: AUTH_CODES.NO_ACCESS, reason: 'Unknown user' };
+
+      let role = null;
+      if (doc.ownerId === user.id) role = ROLES.OWNER;
+      else role = await getUserRoleForDocument(docId, user.id);
+
+      // A signed-in user who holds a valid share link but has no explicit
+      // permission row (e.g. they just accepted an invite) must still get
+      // the link's role. Without this their REST calls succeed via the
+      // same token but every WebSocket session is rejected — the editor
+      // loads once and immediately dies with a terminal 4403.
+      if (!role && doc.shareEnabled && timingSafeEqual(doc.shareToken, shareToken)) {
+        role = doc.shareRole;
+      }
+
+      if (!role) return { ok: false, code: AUTH_CODES.NO_ACCESS, reason: 'No access to this document' };
+      return {
+        ok: true,
+        identity: {
+          userId: user.id,
+          name: user.name ?? user.email,
+          color: colorFor(user.id),
+          guest: false,
+          imageUrl: user.imageUrl ?? null,
+        },
+        role,
+      };
+    } catch (err) {
+      console.error('[auth] clerk token rejected:', err.message);
+      // Distinguish expired/invalid tokens (4010) from other auth failures
+      // (4001) so the client can specifically refresh its token and retry.
+      const isExpired = err.message?.includes('expired') || err.message?.includes('token has expired');
+      return {
+        ok: false,
+        code: isExpired ? AUTH_CODES.TOKEN_EXPIRED : AUTH_CODES.INVALID,
+        reason: 'Invalid token',
+      };
+    }
+  }
+
+  // Path 2: guest via active share link.
+  if (shareToken && doc.shareEnabled && timingSafeEqual(doc.shareToken, shareToken)) {
+    return {
+      ok: true,
+      identity: {
+        userId: `guest:${randomId()}`,
+        name: GUEST_NAMES[Math.floor(Math.random() * GUEST_NAMES.length)],
+        color: colorFor(shareToken + Math.random()),
+        guest: true,
+      },
+      role: doc.shareRole,
+    };
+  }
+
+  return { ok: false, code: AUTH_CODES.NO_ACCESS, reason: 'Access denied' };
+}
+
+function colorFor(seedStr) {
+  const PALETTE = [
+    '#0ea5e9', '#8b5cf6', '#ec4899', '#f59e0b',
+    '#10b981', '#ef4444', '#6366f1', '#14b8a6',
+  ];
+  let hash = 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    hash = (hash * 31 + seedStr.charCodeAt(i)) >>> 0;
+  }
+  return PALETTE[hash % PALETTE.length];
+}
+
+function randomId() {
+  return Math.random().toString(36).slice(2, 10);
+}
